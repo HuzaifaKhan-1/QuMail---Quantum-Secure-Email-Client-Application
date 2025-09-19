@@ -15,8 +15,8 @@ interface KeyResponse {
 
 interface KeyMaterial {
   key_id: string;
-  key: string; // base64 encoded
-  remaining_usage_count: number;
+  key_material: string; // base64 encoded
+  timestamp: string;
 }
 
 interface KeyPoolStats {
@@ -40,8 +40,11 @@ interface QuantumKeyEntry {
 class KMESimulator {
   private keyStore: Map<string, QuantumKeyEntry> = new Map();
   private readonly KEY_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly KEY_EXPIRY_MINUTES = 24 * 60; // 24 hours in minutes
   private readonly POOL_SIZE_TARGET = 10; // Target number of keys in pool
   private readonly DEFAULT_KEY_LENGTH = 8192; // 8KB keys by default
+  private readonly MAX_KEY_SIZE_BYTES = 1024 * 1024; // 1MB max key size
+  private readonly POOL_SIZE_MB = 100; // 100MB pool size
 
   constructor() {
     // Initialize with some keys
@@ -116,7 +119,7 @@ class KMESimulator {
 
   async getKey(keyId: string): Promise<KeyMaterial | null> {
     const key = this.keyStore.get(keyId);
-    if (!key || !key.isActive || key.expiryTime < new Date()) {
+    if (!key || key.expiryTime < new Date()) {
       console.log(`Key not found or expired: ${keyId}`);
       return null;
     }
@@ -126,6 +129,8 @@ class KMESimulator {
       console.error(`Key material is empty for key: ${keyId}`);
       return null;
     }
+
+    console.log(`Retrieved key ${keyId} for ${key.isActive ? 'active' : 'consumed'} usage`);
 
     return {
       key_id: keyId,
@@ -138,22 +143,24 @@ class KMESimulator {
     try {
       const key = this.keyStore.get(keyId);
 
-      if (!key || !key.isActive) {
+      if (!key) {
         return false;
       }
 
       const newConsumedBytes = (key.consumedBytes || 0) + ack.consumed_bytes;
 
       // Update consumed bytes
-      key.consumedBytes = newConsumedBytes; // Update in memory
-      this.keyStore.set(keyId, key); // Save back to map
-
-      // Deactivate if fully consumed
-      if (newConsumedBytes >= key.maxConsumptionBytes) {
-        key.isActive = false; // Deactivate in memory
-        this.keyStore.set(keyId, key); // Save back to map
+      key.consumedBytes = newConsumedBytes;
+      
+      // Keep key available for decryption even if consumed
+      // Only mark as inactive if it exceeds maximum usage significantly
+      if (newConsumedBytes >= key.maxConsumptionBytes * 2) {
+        key.isActive = false;
       }
+      
+      this.keyStore.set(keyId, key);
 
+      console.log(`Key ${keyId} usage acknowledged: ${newConsumedBytes}/${key.maxConsumptionBytes} bytes consumed`);
       return true;
     } catch (error) {
       console.error("KME acknowledge key usage error:", error);
