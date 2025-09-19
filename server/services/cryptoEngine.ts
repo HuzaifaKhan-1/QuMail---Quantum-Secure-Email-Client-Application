@@ -80,6 +80,10 @@ export class CryptoEngine {
       throw new Error("Failed to obtain quantum key material");
     }
 
+    if (!keyMaterial.key_material) {
+      throw new Error("Key material is empty or undefined");
+    }
+
     const keyBuffer = Buffer.from(keyMaterial.key_material, 'base64');
     
     // XOR data with quantum key (OTP)
