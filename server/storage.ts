@@ -150,6 +150,7 @@ export class MemStorage implements IStorage {
       keyId: insertMessage.keyId || null,
       isEncrypted: insertMessage.isEncrypted || false,
       isDecrypted: insertMessage.isDecrypted || false,
+      metadata: (insertMessage as any).metadata || null,
       attachments: insertMessage.attachments || null,
       encryptedAttachments: (insertMessage as any).encryptedAttachments || null,
       folder: insertMessage.folder || "inbox",

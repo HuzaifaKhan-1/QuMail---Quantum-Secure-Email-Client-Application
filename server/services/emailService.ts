@@ -85,6 +85,7 @@ export class EmailService {
         keyId,
         isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
         isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
+        metadata: metadata,
         attachments: options.attachments ? options.attachments.map(a => ({
           filename: a.filename,
           contentType: a.contentType,
@@ -107,6 +108,7 @@ export class EmailService {
         keyId,
         isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
         isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
+        metadata: metadata,
         attachments: options.attachments ? options.attachments.map(a => ({
           filename: a.filename,
           contentType: a.contentType,
