@@ -28,6 +28,7 @@ export const messages = pgTable("messages", {
   keyId: text("key_id"),
   isEncrypted: boolean("is_encrypted").default(false),
   isDecrypted: boolean("is_decrypted").default(false),
+  metadata: jsonb("metadata"),
   attachments: jsonb("attachments"),
   encryptedAttachments: jsonb("encrypted_attachments"),
   receivedAt: timestamp("received_at").defaultNow(),

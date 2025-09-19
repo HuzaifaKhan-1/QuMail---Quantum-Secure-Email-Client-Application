@@ -31,6 +31,10 @@ export default function EmailPreview({ message }: EmailPreviewProps) {
     mutationFn: (messageId: string) => api.decryptEmail(messageId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      // Also invalidate the specific message to refresh the preview
+      if (message) {
+        queryClient.invalidateQueries({ queryKey: [`/api/emails/${message.id}`] });
+      }
       toast({
         title: "Email decrypted",
         description: "The email has been successfully decrypted.",
