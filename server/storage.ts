@@ -51,6 +51,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private static instance: MemStorage;
   private users: Map<string, User> = new Map();
   private messages: Map<string, Message> = new Map();
   private quantumKeys: Map<string, QuantumKey> = new Map();
@@ -58,8 +59,14 @@ export class MemStorage implements IStorage {
   private keyRequests: Map<string, KeyRequest> = new Map();
 
   constructor() {
+    // Singleton pattern to ensure data persistence
+    if (MemStorage.instance) {
+      return MemStorage.instance;
+    }
+    
     // Initialize with some sample quantum keys
     this.initializeSampleKeys();
+    MemStorage.instance = this;
   }
 
   private initializeSampleKeys() {

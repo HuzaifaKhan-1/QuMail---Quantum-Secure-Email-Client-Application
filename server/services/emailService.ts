@@ -32,7 +32,7 @@ export class EmailService {
           options.securityLevel,
           options.to
         );
-        
+
         encryptedBody = bodyEncryption.encryptedData;
         keyId = bodyEncryption.keyId;
         metadata = bodyEncryption.metadata;
@@ -45,7 +45,7 @@ export class EmailService {
               options.securityLevel,
               options.to
             );
-            
+
             encryptedAttachments.push({
               filename: attachment.filename,
               originalSize: attachment.content.length,
@@ -158,29 +158,31 @@ export class EmailService {
     }
   }
 
-  
+
 
   async decryptEmail(messageId: string, userId: string): Promise<boolean> {
     try {
       const message = await storage.getMessage(messageId);
+
       if (!message || message.userId !== userId) {
+        console.error(`Message not found or unauthorized: messageId=${messageId}, userId=${userId}`);
         return false;
       }
 
-      if (!message.isEncrypted || message.isDecrypted || !message.encryptedBody) {
+      if (!message.isEncrypted || message.isDecrypted) {
+        console.log(`Message already decrypted or not encrypted: messageId=${messageId}`);
         return true; // Already decrypted or not encrypted
       }
 
-      // Parse metadata to get decryption parameters
-      const metadata = {
-        securityLevel: message.securityLevel,
-        keyId: message.keyId
-      };
+      if (!message.encryptedBody) {
+        console.error(`No encrypted body found for message: messageId=${messageId}`);
+        return false;
+      }
 
-      const decryptionResult = await cryptoEngine.decrypt(
-        message.encryptedBody,
-        metadata
-      );
+      const metadata = message.metadata as Record<string, any>;
+      console.log(`Decrypting message ${messageId} with metadata:`, metadata);
+
+      const decryptionResult = await cryptoEngine.decrypt(message.encryptedBody, metadata);
 
       if (decryptionResult.verified) {
         await storage.updateMessage(messageId, {

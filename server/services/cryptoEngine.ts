@@ -230,6 +230,11 @@ export class CryptoEngine {
   private async decryptOTP(encryptedData: string, metadata: Record<string, any>): Promise<DecryptionResult> {
     const dataBuffer = Buffer.from(encryptedData, 'base64');
     const dataLength = metadata.dataLength;
+    
+    if (!dataLength || typeof dataLength !== 'number') {
+      throw new Error(`Invalid data length in metadata: ${dataLength}`);
+    }
+    
     const encrypted = dataBuffer.slice(0, dataLength);
     const authTag = dataBuffer.slice(dataLength);
 
@@ -248,6 +253,10 @@ export class CryptoEngine {
     const verified = expectedTag.equals(authTag);
     
     // XOR to decrypt
+    if (dataLength <= 0) {
+      throw new Error(`Invalid data length for decryption: ${dataLength}`);
+    }
+    
     const decrypted = Buffer.alloc(dataLength);
     for (let i = 0; i < dataLength; i++) {
       decrypted[i] = encrypted[i] ^ keyBuffer[i];

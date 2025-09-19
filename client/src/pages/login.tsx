@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -37,11 +37,12 @@ export default function Login() {
     gcTime: 0 // Don't cache the result
   });
 
-  // Redirect if already logged in and data is fresh
-  if (userInfo?.user && !isLoading) {
-    setLocation("/inbox");
-    return null;
-  }
+  // Use useEffect to handle redirection to avoid hooks order issues
+  React.useEffect(() => {
+    if (userInfo?.user && !isLoading) {
+      setLocation("/inbox");
+    }
+  }, [userInfo, isLoading, setLocation]);
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>

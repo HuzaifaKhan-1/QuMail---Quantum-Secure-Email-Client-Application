@@ -15,13 +15,15 @@ app.use(express.urlencoded({ extended: false }));
 
 // Configure session middleware
 app.use(session({
-  secret: process.env.SESSION_SECRET || "quantum-mail-secret-key", 
+  secret: process.env.SESSION_SECRET || "quantum-mail-secret-key-super-secure-2024", 
   resave: false,
   saveUninitialized: false,
+  name: "qumail.sid", // Custom session name
   cookie: {
     secure: false, // Set to true in production with HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 1 day
+    sameSite: 'lax' // Better security
   }
 }));
 
