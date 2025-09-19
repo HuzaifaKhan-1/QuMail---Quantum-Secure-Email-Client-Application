@@ -40,12 +40,17 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const logoutMutation = useMutation({
     mutationFn: () => api.logout(),
     onSuccess: () => {
+      // Clear all queries and reset query client
       queryClient.clear();
-      setLocation("/login");
-      toast({
-        title: "Logged out",
-        description: "You have been logged out successfully.",
-      });
+      queryClient.resetQueries();
+      // Force redirect to login
+      window.location.href = "/login";
+    },
+    onError: () => {
+      // Even if logout fails on server, clear client state
+      queryClient.clear();
+      queryClient.resetQueries();
+      window.location.href = "/login";
     }
   });
 

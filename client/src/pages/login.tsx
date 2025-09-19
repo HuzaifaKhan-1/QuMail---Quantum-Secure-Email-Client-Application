@@ -29,14 +29,16 @@ export default function Login() {
 
 
   // Check if already logged in
-  const { data: userInfo } = useQuery({
+  const { data: userInfo, isLoading } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: () => api.getMe(),
-    retry: false
+    retry: false,
+    staleTime: 0, // Always check for fresh data
+    gcTime: 0 // Don't cache the result
   });
 
-  // Redirect if already logged in
-  if (userInfo?.user) {
+  // Redirect if already logged in and data is fresh
+  if (userInfo?.user && !isLoading) {
     setLocation("/inbox");
     return null;
   }
