@@ -63,7 +63,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
 
   const getSecurityStatus = () => {
     if (!keyPoolStats) return { level: "Unknown", color: "bg-gray-500" };
-    
+
     if (keyPoolStats.utilizationPercent < 50) {
       return { level: "Quantum Active", color: "bg-green-500" };
     } else if (keyPoolStats.utilizationPercent < 80) {
@@ -113,7 +113,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
             </p>
           </div>
         </div>
-        
+
         {/* Security Status */}
         <div className="p-2 bg-green-50 dark:bg-green-950 rounded-md border border-green-200 dark:border-green-800">
           <div className="flex items-center justify-between mb-1">
@@ -138,13 +138,17 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path;
-          
+
           return (
             <Button
               key={item.path}
               variant={isActive ? "default" : "ghost"}
               className={`w-full justify-start ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-              onClick={() => setLocation(item.path)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setLocation(item.path);
+              }}
               data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
             >
               <Icon className="h-4 w-4 mr-3" />
@@ -161,23 +165,31 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
             </Button>
           );
         })}
-        
+
         <div className="pt-4">
           <Button
             variant="ghost"
             className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
-            onClick={() => setLocation("/audit")}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setLocation("/audit");
+            }}
             data-testid="nav-security-audit"
           >
             <ShieldCheck className="h-4 w-4 mr-3" />
             <span className="text-sm font-medium">Security Audit</span>
           </Button>
-          
+
           <Button
             variant="ghost"
-            className="w-full justify-start text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
-            onClick={() => logoutMutation.mutate()}
-            disabled={logoutMutation.isPending}
+            size="sm"
+            className="w-full justify-start text-destructive hover:text-destructive"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              logoutMutation.mutate();
+            }}
             data-testid="button-logout"
           >
             <LogOut className="h-4 w-4 mr-3" />

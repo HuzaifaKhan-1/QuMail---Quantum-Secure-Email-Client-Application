@@ -280,7 +280,7 @@ export default function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
               </Label>
               <div className="col-span-11 space-y-4">
                 <div className="relative border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
-                  <div className="space-y-2">
+                  <div className="space-y-2 pointer-events-none">
                     <Upload className="h-6 w-6 text-muted-foreground mx-auto" />
                     <p className="text-sm text-muted-foreground">Drag files here or click to browse</p>
                     <p className="text-xs text-muted-foreground">Max file size: 10MB</p>
@@ -289,8 +289,9 @@ export default function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
                     type="file"
                     multiple
                     onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     data-testid="modal-input-file"
+                    style={{ pointerEvents: 'all' }}
                   />
                 </div>
 

@@ -159,6 +159,19 @@
   background: hsl(var(--foreground));
 }
 
+/* Prevent file input interference with navigation */
+input[type="file"] {
+  pointer-events: all !important;
+}
+
+input[type="file"]:not(:hover) {
+  pointer-events: none !important;
+}
+
+.file-upload-area:hover input[type="file"] {
+  pointer-events: all !important;
+}
+
 /* Quantum key visualization */
 .key-capacity-bar {
   background: linear-gradient(90deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);

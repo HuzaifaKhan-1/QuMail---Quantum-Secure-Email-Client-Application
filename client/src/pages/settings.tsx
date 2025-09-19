@@ -64,7 +64,12 @@ export default function Settings() {
     }
   });
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     updateSettingsMutation.mutate({
       defaultSecurityLevel,
       // Note: Other settings would be implemented based on backend schema

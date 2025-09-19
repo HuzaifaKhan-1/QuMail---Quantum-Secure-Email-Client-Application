@@ -326,7 +326,7 @@ export default function Compose() {
                     Attachments:
                   </Label>
                   <div className="col-span-11 space-y-4">
-                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center relative">
                       <div className="space-y-2">
                         <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
                         <p className="text-sm text-muted-foreground">Drag files here or click to browse</p>
@@ -336,8 +336,9 @@ export default function Compose() {
                         type="file"
                         multiple
                         onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         data-testid="input-file"
+                        style={{ pointerEvents: 'all' }}
                       />
                     </div>
 
