@@ -3,30 +3,30 @@ import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Mail } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLogin, setIsLogin] = useState(true);
-  
+
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: ""
   });
 
-  const [registerForm, setRegisterForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    emailProvider: "gmail"
-  });
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
 
   // Check if already logged in
   const { data: userInfo } = useQuery({
@@ -42,7 +42,7 @@ export default function Login() {
   }
 
   const loginMutation = useMutation({
-    mutationFn: (credentials: { email: string; password: string }) => 
+    mutationFn: (credentials: { email: string; password: string }) =>
       api.login(credentials),
     onSuccess: () => {
       toast({
@@ -61,18 +61,21 @@ export default function Login() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: typeof registerForm) => api.register(userData),
+    mutationFn: async (userData: { username: string; email: string; password: string }) => {
+      return api.register(userData);
+    },
     onSuccess: () => {
-      toast({
-        title: "Registration successful",
-        description: "Welcome to QuMail!",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setLocation("/inbox");
+      toast({
+        title: "Account created",
+        description: "Welcome to QuMail! Your secure internal email platform.",
+      });
     },
     onError: (error: any) => {
       toast({
-        title: "Registration failed", 
-        description: error.message || "Registration failed",
+        title: "Registration failed",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     }
@@ -83,9 +86,17 @@ export default function Login() {
     loginMutation.mutate(loginForm);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    registerMutation.mutate(registerForm);
+    if (!username || !email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    registerMutation.mutate({ username, email, password });
   };
 
   return (
@@ -146,9 +157,9 @@ export default function Login() {
                       data-testid="input-password"
                     />
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
+                  <Button
+                    type="submit"
+                    className="w-full"
                     disabled={loginMutation.isPending}
                     data-testid="button-login"
                   >
@@ -159,70 +170,62 @@ export default function Login() {
               </TabsContent>
 
               <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={registerForm.username}
-                      onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                      placeholder="johndoe"
-                      required
-                      data-testid="input-username"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">Email</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      value={registerForm.email}
-                      onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                      placeholder="your.email@example.com"
-                      required
-                      data-testid="input-register-email"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="provider">Email Provider</Label>
-                    <Select 
-                      value={registerForm.emailProvider} 
-                      onValueChange={(value) => setRegisterForm({ ...registerForm, emailProvider: value })}
-                      data-testid="select-provider"
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    <div>
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        data-testid="input-username"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="register-email">Email Address</Label>
+                      <Input
+                        id="register-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your.email@qumail.com"
+                        required
+                        data-testid="input-register-email"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This will be your QuMail address for secure internal communication
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="register-password">Password</Label>
+                      <Input
+                        id="register-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        data-testid="input-register-password"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={registerMutation.isPending}
+                      data-testid="button-register"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gmail">Gmail</SelectItem>
-                        <SelectItem value="outlook">Outlook</SelectItem>
-                        <SelectItem value="yahoo">Yahoo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password">Password</Label>
-                    <Input
-                      id="reg-password"
-                      type="password"
-                      value={registerForm.password}
-                      onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                      placeholder="••••••••"
-                      required
-                      data-testid="input-register-password"
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={registerMutation.isPending}
-                    data-testid="button-register"
-                  >
-                    {registerMutation.isPending ? "Creating Account..." : "Create Account"}
-                    <Shield className="ml-2 h-4 w-4" />
-                  </Button>
-                </form>
-              </TabsContent>
+                      {registerMutation.isPending ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating Account...
+                        </>
+                      ) : (
+                        "Create Account"
+                      )}
+                    </Button>
+                  </form>
+                </TabsContent>
+
             </Tabs>
 
             <div className="mt-6 p-4 bg-muted rounded-lg">

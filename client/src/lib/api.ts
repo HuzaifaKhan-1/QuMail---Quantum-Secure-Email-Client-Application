@@ -3,7 +3,7 @@ import type { User, Message, QuantumKey, KeyPoolStats, AuditLog, SendEmailReques
 
 export const api = {
   // Authentication
-  async register(userData: { username: string; email: string; password: string; emailProvider: string }) {
+  async register(userData: { username: string; email: string; password: string }) {
     const response = await apiRequest("POST", "/api/auth/register", userData);
     return response.json();
   },

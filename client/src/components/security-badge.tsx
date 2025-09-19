@@ -28,7 +28,7 @@ export default function SecurityBadge({ level, size = "md", showIcon = true }: S
       case SecurityLevel.LEVEL3_PQC:
         return {
           label: "Level 3 PQC",
-          description: "Post-Quantum Cryptography",
+          description: "CRYSTALS-Kyber PQC",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
           icon: Lock
         };

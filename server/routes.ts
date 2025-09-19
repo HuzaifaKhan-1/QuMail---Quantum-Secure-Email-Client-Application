@@ -18,21 +18,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const { username, email, password } = req.body;
       
       // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
+      const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already registered" });
       }
 
-      const user = await storage.createUser(userData);
+      const user = await storage.createUser({
+        username,
+        email,
+        password,
+        emailProvider: "qumail", // Internal platform only
+        defaultSecurityLevel: "level1"
+      });
       
       // Log registration
       await storage.createAuditLog({
         userId: user.id,
         action: "user_registered",
-        details: { email: user.email, provider: user.emailProvider },
+        details: { email: user.email, provider: "qumail" },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       });
@@ -317,41 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/emails/fetch", requireAuth, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.session.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const emails = await emailService.fetchEmails(user);
-      
-      // Store fetched emails
-      for (const email of emails) {
-        const existingMessage = await storage.getMessage(email.id);
-        if (!existingMessage) {
-          await storage.createMessage({
-            userId: user.id,
-            messageId: email.messageId,
-            from: email.from,
-            to: email.to,
-            subject: email.subject,
-            body: email.isEncrypted ? null : email.body,
-            encryptedBody: email.isEncrypted ? email.body : null,
-            securityLevel: email.securityLevel,
-            isEncrypted: email.isEncrypted,
-            isDecrypted: !email.isEncrypted,
-            folder: "inbox"
-          });
-        }
-      }
-
-      res.json({ message: `Fetched ${emails.length} emails` });
-    } catch (error) {
-      console.error("Fetch emails error:", error);
-      res.status(500).json({ message: "Failed to fetch emails" });
-    }
-  });
+  
 
   // Audit logs
   app.get("/api/audit", requireAuth, async (req, res) => {

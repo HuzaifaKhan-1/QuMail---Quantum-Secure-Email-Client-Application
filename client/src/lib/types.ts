@@ -8,18 +8,29 @@ export interface User {
 
 export interface Message {
   id: string;
+  userId: string;
   messageId: string;
   from: string;
   to: string;
   subject: string;
-  body: string | null;
-  encryptedBody: string | null;
+  body?: string;
+  encryptedBody?: string;
   securityLevel: SecurityLevel;
-  keyId?: string | null;
+  keyId?: string;
   isEncrypted: boolean;
   isDecrypted: boolean;
-  isRead?: boolean;
-  attachments?: EmailAttachment[] | null;
+  attachments?: Array<{
+    filename: string;
+    contentType: string;
+    size: number;
+  }>;
+  encryptedAttachments?: Array<{
+    filename: string;
+    originalSize: number;
+    contentType: string;
+    encryptedData: string;
+    keyId?: string;
+  }>;
   receivedAt: string;
   folder: string;
 }

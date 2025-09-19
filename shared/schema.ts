@@ -29,6 +29,7 @@ export const messages = pgTable("messages", {
   isEncrypted: boolean("is_encrypted").default(false),
   isDecrypted: boolean("is_decrypted").default(false),
   attachments: jsonb("attachments"),
+  encryptedAttachments: jsonb("encrypted_attachments"),
   receivedAt: timestamp("received_at").defaultNow(),
   folder: text("folder").default("inbox"), // inbox, sent, trash
 });

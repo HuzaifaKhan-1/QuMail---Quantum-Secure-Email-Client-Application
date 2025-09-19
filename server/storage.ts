@@ -21,7 +21,7 @@ export interface IStorage {
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
 
   // Message methods
-  getMessagesByUser(userId: string, folder?: string): Promise<Message[]>;
+  getMessagesByUser(userId: string, folder?: string, limit?: number): Promise<Message[]>;
   getMessage(id: string): Promise<Message | undefined>;
   createMessage(message: InsertMessage): Promise<Message>;
   updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined>;
@@ -116,10 +116,11 @@ export class MemStorage implements IStorage {
   }
 
   // Message methods
-  async getMessagesByUser(userId: string, folder = "inbox"): Promise<Message[]> {
+  async getMessagesByUser(userId: string, folder = "inbox", limit = 50): Promise<Message[]> {
     return Array.from(this.messages.values())
       .filter(msg => msg.userId === userId && msg.folder === folder)
-      .sort((a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime());
+      .sort((a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime())
+      .slice(0, limit);
   }
 
   async getMessage(id: string): Promise<Message | undefined> {
@@ -137,6 +138,7 @@ export class MemStorage implements IStorage {
       isEncrypted: insertMessage.isEncrypted || false,
       isDecrypted: insertMessage.isDecrypted || false,
       attachments: insertMessage.attachments || null,
+      encryptedAttachments: (insertMessage as any).encryptedAttachments || null,
       folder: insertMessage.folder || "inbox",
       receivedAt: new Date()
     };

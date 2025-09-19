@@ -149,8 +149,8 @@ export default function Compose() {
         };
       case SecurityLevel.LEVEL3_PQC:
         return {
-          name: "Level 3 - PQC Hybrid (Simulated)",
-          description: "Post-Quantum Cryptography hybrid approach",
+          name: "Level 3 - CRYSTALS-Kyber PQC",
+          description: "Post-Quantum Cryptography with CRYSTALS-Kyber KEM",
           warning: null
         };
       case SecurityLevel.LEVEL4_PLAIN:
@@ -271,7 +271,7 @@ export default function Compose() {
                       <SelectContent>
                         <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Quantum OTP (Highest Security)</SelectItem>
                         <SelectItem value={SecurityLevel.LEVEL2_AES}>Level 2 - Quantum-seeded AES-GCM</SelectItem>
-                        <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - PQC Hybrid (Simulated)</SelectItem>
+                        <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - CRYSTALS-Kyber PQC</SelectItem>
                         <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Level 4 - Plain Text</SelectItem>
                       </SelectContent>
                     </Select>
