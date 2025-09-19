@@ -133,7 +133,6 @@ export class EmailService {
         encryptedAttachments = options.attachments || [];
       }
 
-      // For demo purposes, we'll simulate email sending since we don't have real SMTP credentials
       console.log(`Sending email via ${user.emailProvider}:`, {
         from: user.email,
         to: options.to,
@@ -148,11 +147,12 @@ export class EmailService {
         try {
           await this.sendViaOutlook(options, encryptedBody, encryptedAttachments, options.securityLevel);
         } catch (error) {
-          console.log('Outlook API not configured, simulating send');
+          console.log('Outlook API not configured, falling back to SMTP');
+          await this.sendViaSMTP(user, options, encryptedBody, encryptedAttachments, options.securityLevel);
         }
       } else {
-        // Simulate SMTP sending for demo
-        console.log('SMTP sending simulated successfully');
+        // Send via SMTP for Gmail, Yahoo, and other providers
+        await this.sendViaSMTP(user, options, encryptedBody, encryptedAttachments, options.securityLevel);
       }
 
       // Store message in database
@@ -247,7 +247,15 @@ export class EmailService {
     attachments: any[],
     securityLevel: SecurityLevel
   ): Promise<void> {
-    const config = this.getEmailConfig(user.emailProvider, user.email, ""); // Password would come from user config
+    // For demo purposes, we'll need app-specific passwords for Gmail
+    // In production, these should be stored securely in user settings
+    const appPassword = process.env.GMAIL_APP_PASSWORD || "";
+    
+    if (!appPassword && user.emailProvider === 'gmail') {
+      throw new Error("Gmail App Password not configured. Please set GMAIL_APP_PASSWORD environment variable.");
+    }
+
+    const config = this.getEmailConfig(user.emailProvider, user.email, appPassword);
     const transporter = nodemailer.createTransporter(config.smtp);
 
     const mailOptions = {
@@ -256,8 +264,19 @@ export class EmailService {
       subject: securityLevel !== SecurityLevel.LEVEL4_PLAIN 
         ? `[${securityLevel.toUpperCase()}] ${options.subject}`
         : options.subject,
+      html: securityLevel !== SecurityLevel.LEVEL4_PLAIN
+        ? `<div style="font-family: Arial, sans-serif;">
+             <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+               <strong>🔐 QuMail Encrypted Message</strong><br>
+               Security Level: ${securityLevel.toUpperCase()}
+             </div>
+             <div style="background: #fafafa; padding: 15px; border-left: 4px solid #007bff;">
+               ${body.replace(/\n/g, '<br>')}
+             </div>
+           </div>`
+        : body.replace(/\n/g, '<br>'),
       text: securityLevel !== SecurityLevel.LEVEL4_PLAIN
-        ? `This message is encrypted with QuMail security level: ${securityLevel}\n\n${body}`
+        ? `🔐 QuMail Encrypted Message\nSecurity Level: ${securityLevel.toUpperCase()}\n\n${body}`
         : body,
       headers: {
         'X-QuMail-Security': securityLevel,
@@ -267,6 +286,7 @@ export class EmailService {
     };
 
     await transporter.sendMail(mailOptions);
+    console.log(`Email sent successfully via SMTP to ${options.to}`);
   }
 
   async fetchEmails(user: User, folder = "INBOX", limit = 50): Promise<any[]> {
