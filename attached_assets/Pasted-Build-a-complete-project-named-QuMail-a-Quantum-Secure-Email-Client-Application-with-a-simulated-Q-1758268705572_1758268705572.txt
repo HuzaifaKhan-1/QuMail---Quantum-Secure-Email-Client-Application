@@ -1,0 +1,177 @@
+Build a complete project named QuMail — a Quantum Secure Email Client Application with a simulated Quantum Key Distribution (QKD) Key Manager service.
+
+🔹 Project Requirements
+1. Overall Goal
+
+Create a web-based email client (for demo) that:
+
+Lets users log in with Gmail/Outlook/Yahoo via SMTP/IMAP.
+
+Integrates with a Quantum Key Manager (KME simulator) using the ETSI GS QKD-014 REST protocol for key delivery.
+
+Encrypts/decrypts emails and attachments at the application layer using quantum keys.
+
+Allows multiple security levels:
+
+Level 1 – Quantum OTP: One-Time Pad encryption using QKD keys.
+
+Level 2 – Quantum-seeded AES: Derive AES-GCM keys from QKD key material.
+
+Level 3 – PQC/Hybrid (simulated): Use QKD seed + post-quantum KEM (mock).
+
+Level 4 – No Quantum Security: Plain email.
+
+2. Tech Stack
+
+Backend: Node.js (Express)
+
+Frontend: React (Vite or CRA)
+
+Database: SQLite (via Prisma or better-sqlite3) for configs, metadata, audit logs
+
+Crypto: libsodium or Node’s native crypto
+
+Email: nodemailer (SMTP) and imapflow (IMAP)
+
+KME Simulator: Express REST API implementing ETSI GS QKD-014 style endpoints
+
+3. File Structure
+/qumail
+  /backend
+    server.js
+    kmeSimulator.js
+    cryptoEngine.js
+    emailService.js
+    db.js
+  /frontend
+    /src
+      App.jsx
+      components/
+        LoginForm.jsx
+        ComposeMail.jsx
+        Inbox.jsx
+        KeyDashboard.jsx
+        Settings.jsx
+    index.html
+    vite.config.js
+  package.json
+
+4. Backend Details
+a) KME Simulator (ETSI QKD-014 style)
+
+Implement REST endpoints:
+
+POST /kme/requestKey
+→ Accepts JSON {request_id, key_length_bits, recipient}
+→ Responds with {key_id, delivery_uri}
+
+GET /kme/keys/:key_id
+→ Returns JSON {key_id, key_material (base64), expiry, max_consumption_bytes}
+
+POST /kme/keys/:key_id/ack
+→ Accepts {consumed_bytes, message_id}
+
+Simulate key material by generating random bytes (secure RNG).
+
+b) Crypto Engine
+
+OTP encryption: XOR plaintext with QKD key bytes (consume key, enforce no reuse).
+
+AES-GCM: Derive AES key/IV from QKD key via HKDF, encrypt body & attachments.
+
+PQC Hybrid: Stub using random key wrap + QKD seed (mock).
+
+Track key usage in SQLite (keys table with consumed bytes).
+
+c) Email Service
+
+sendMail(to, subject, body, attachments, securityLevel)
+
+Encrypt body & attachments based on chosen level.
+
+Add headers: X-QuMail-Security: Level1|Level2|Level3|Level4.
+
+Send via SMTP (Nodemailer).
+
+fetchMail()
+
+Connect via IMAP (ImapFlow).
+
+Decrypt messages if encrypted and keys available.
+
+d) Database
+
+Tables: users, messages, keys, logs.
+
+Store metadata only, never raw OTP key material permanently.
+
+5. Frontend Details
+a) Pages/Components
+
+LoginForm: Enter SMTP/IMAP creds (OAuth2 if possible, fallback basic).
+
+ComposeMail: To/Subject/Body, attach files, select Security Level (dropdown).
+
+Inbox: List of received mails, show decrypted content if available.
+
+KeyDashboard: Show available keys, consumed bytes, request new keys.
+
+Settings: User profile, default security level, KM endpoint config.
+
+b) UI/UX
+
+Use TailwindCSS for styling.
+
+Show notification if OTP key pool is insufficient → fallback to AES.
+
+Display key usage meter.
+
+Decrypt button in Inbox (if encrypted).
+
+6. Security Rules
+
+OTP: Ensure no key reuse, track consumed bytes, call /ack after send.
+
+AES-GCM: Always authenticate ciphertext (MAC).
+
+Temporary key caching: Store in memory only; clear after use.
+
+TLS: All backend endpoints served over HTTPS.
+
+7. Demo Workflow
+
+User logs into QuMail with Gmail credentials.
+
+QuMail requests key material from KME simulator via REST.
+
+User composes message → selects Level 1 (OTP).
+
+Message encrypted with OTP key → sent via SMTP.
+
+Recipient logs in → fetches via IMAP → QuMail decrypts using KME keys.
+
+Dashboard shows key consumption stats + audit logs.
+
+8. Bonus Features (if time permits)
+
+Group key distribution (multi-recipient).
+
+Message expiration (auto delete after TTL).
+
+Admin panel for enterprise policy.
+
+Fallback for non-QuMail recipients (password-protected attachments).
+
+🔹 Deliverables
+
+Full working backend (Express) + frontend (React) app.
+
+KME simulator with ETSI GS QKD-014 style REST API.
+
+Email send/receive with OTP + AES seeded modes working.
+
+UI for key dashboard, inbox, compose, and settings.
+
+Documentation: README.md with setup, usage, and demo instructions.
+
+⚡ Build the entire project in Replit so it can be run with npm install && npm run dev for frontend, and npm run start for backend.
