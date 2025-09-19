@@ -154,7 +154,7 @@ export default function KeyDashboard() {
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {statsLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <Card key={i}>

@@ -20,6 +20,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, email, password } = req.body;
       
+      // Validate required fields
+      if (!username || !email || !password) {
+        return res.status(400).json({ message: "Username, email, and password are required" });
+      }
+      
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {

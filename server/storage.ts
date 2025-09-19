@@ -1,16 +1,22 @@
 import { 
+  users, 
+  messages, 
+  auditLogs, 
+  quantumKeys, 
+  keyRequests,
   type User, 
-  type InsertUser,
-  type Message,
-  type InsertMessage,
+  type Message, 
+  type AuditLog, 
   type QuantumKey,
-  type InsertQuantumKey,
-  type AuditLog,
-  type InsertAuditLog,
   type KeyRequest,
+  type InsertUser, 
+  type InsertMessage, 
+  type InsertAuditLog,
+  type InsertQuantumKey,
   type InsertKeyRequest
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { sql, eq, desc } from "drizzle-orm"; // Assuming these are available from drizzle-orm
 
 export interface IStorage {
   // User methods
@@ -109,7 +115,7 @@ export class MemStorage implements IStorage {
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
-    
+
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
@@ -149,7 +155,7 @@ export class MemStorage implements IStorage {
   async updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined> {
     const message = this.messages.get(id);
     if (!message) return undefined;
-    
+
     const updatedMessage = { ...message, ...updates };
     this.messages.set(id, updatedMessage);
     return updatedMessage;
@@ -187,7 +193,7 @@ export class MemStorage implements IStorage {
   async updateQuantumKey(keyId: string, updates: Partial<QuantumKey>): Promise<QuantumKey | undefined> {
     const key = await this.getQuantumKey(keyId);
     if (!key) return undefined;
-    
+
     const updatedKey = { ...key, ...updates };
     this.quantumKeys.set(key.id, updatedKey);
     return updatedKey;
@@ -196,15 +202,15 @@ export class MemStorage implements IStorage {
   async consumeKey(keyId: string, bytes: number): Promise<boolean> {
     const key = await this.getQuantumKey(keyId);
     if (!key || !key.isActive) return false;
-    
+
     const newConsumedBytes = (key.consumedBytes || 0) + bytes;
     if (newConsumedBytes > key.maxConsumptionBytes) return false;
-    
+
     await this.updateQuantumKey(keyId, { 
       consumedBytes: newConsumedBytes,
       isActive: newConsumedBytes < key.maxConsumptionBytes
     });
-    
+
     return true;
   }
 
@@ -224,13 +230,13 @@ export class MemStorage implements IStorage {
     return log;
   }
 
-  async getAuditLogs(userId?: string, limit = 100): Promise<AuditLog[]> {
+  async getAuditLogs(userId?: string, limit = 50): Promise<AuditLog[]> {
     let logs = Array.from(this.auditLogs.values());
-    
+
     if (userId) {
       logs = logs.filter(log => log.userId === userId);
     }
-    
+
     return logs
       .sort((a, b) => b.timestamp!.getTime() - a.timestamp!.getTime())
       .slice(0, limit);
@@ -256,9 +262,9 @@ export class MemStorage implements IStorage {
   }
 
   async updateKeyRequest(requestId: string, updates: Partial<KeyRequest>): Promise<KeyRequest | undefined> {
-    const request = await this.getKeyRequest(requestId);
+    const request = this.keyRequests.get(requestId);
     if (!request) return undefined;
-    
+
     const updatedRequest = { ...request, ...updates };
     this.keyRequests.set(request.id, updatedRequest);
     return updatedRequest;
