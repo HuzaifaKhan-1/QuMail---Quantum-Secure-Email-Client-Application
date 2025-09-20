@@ -1,16 +1,16 @@
-import { 
-  users, 
-  messages, 
-  auditLogs, 
-  quantumKeys, 
+import {
+  users,
+  messages,
+  auditLogs,
+  quantumKeys,
   keyRequests,
-  type User, 
-  type Message, 
-  type AuditLog, 
+  type User,
+  type Message,
+  type AuditLog,
   type QuantumKey,
   type KeyRequest,
-  type InsertUser, 
-  type InsertMessage, 
+  type InsertUser,
+  type InsertMessage,
   type InsertAuditLog,
   type InsertQuantumKey,
   type InsertKeyRequest
@@ -66,20 +66,20 @@ export class MemStorage implements IStorage {
     if (MemStorage.instance) {
       return MemStorage.instance;
     }
-    
+
     // Ensure data directory exists
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
-    
+
     // Load existing data from files
     this.loadData();
-    
+
     // Initialize with some sample quantum keys if no keys exist
     if (this.quantumKeys.size === 0) {
       this.initializeSampleKeys();
     }
-    
+
     MemStorage.instance = this;
   }
 
@@ -216,8 +216,8 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { 
-      ...insertUser, 
+    const user: User = {
+      ...insertUser,
       id,
       smtpConfig: insertUser.smtpConfig || null,
       imapConfig: insertUser.imapConfig || null,
@@ -241,10 +241,12 @@ export class MemStorage implements IStorage {
 
   // Message methods
   async getMessagesByUser(userId: string, folder = "inbox", limit = 50): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .filter(msg => msg.userId === userId && msg.folder === folder)
-      .sort((a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime())
+    const messages = Object.values(this.messages)
+      .filter((msg: any) => msg.userId === userId && msg.folder === folder)
+      .sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
       .slice(0, limit);
+
+    return messages;
   }
 
   async getMessage(id: string): Promise<Message | undefined> {
@@ -329,7 +331,7 @@ export class MemStorage implements IStorage {
     const newConsumedBytes = (key.consumedBytes || 0) + bytes;
     if (newConsumedBytes > key.maxConsumptionBytes) return false;
 
-    await this.updateQuantumKey(keyId, { 
+    await this.updateQuantumKey(keyId, {
       consumedBytes: newConsumedBytes,
       isActive: newConsumedBytes < key.maxConsumptionBytes
     });
