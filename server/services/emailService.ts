@@ -202,10 +202,15 @@ export class EmailService {
           }
         });
 
-        return true;
+        return {
+          success: true,
+          decryptedContent: decryptionResult.decryptedData
+        };
       }
 
-      return false;
+      return {
+        success: false
+      };
 
     } catch (error) {
       console.error("Failed to decrypt email:", error);

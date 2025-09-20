@@ -34,7 +34,16 @@ export default function Inbox() {
   const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/emails", currentFolder],
     queryFn: () => api.getEmails(currentFolder),
-    refetchInterval: 30000 // Auto-refresh every 30 seconds
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    onSuccess: (newMessages) => {
+      // Update selected message if it exists in the new data
+      if (selectedMessage && newMessages) {
+        const updatedMessage = newMessages.find(msg => msg.id === selectedMessage.id);
+        if (updatedMessage) {
+          setSelectedMessage(updatedMessage);
+        }
+      }
+    }
   });
 
   const { data: userInfo } = useQuery({
