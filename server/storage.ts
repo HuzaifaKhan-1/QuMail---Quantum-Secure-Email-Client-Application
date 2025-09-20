@@ -241,11 +241,12 @@ export class MemStorage implements IStorage {
 
   // Message methods
   async getMessagesByUser(userId: string, folder = "inbox", limit = 50): Promise<Message[]> {
-    const messages = Object.values(this.messages)
-      .filter((msg: any) => msg.userId === userId && msg.folder === folder)
-      .sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+    const messages = Array.from(this.messages.values())
+      .filter((msg: Message) => msg.userId === userId && msg.folder === folder)
+      .sort((a: Message, b: Message) => new Date(b.receivedAt!).getTime() - new Date(a.receivedAt!).getTime())
       .slice(0, limit);
 
+    console.log(`Retrieved ${messages.length} messages for user ${userId} in folder ${folder}`);
     return messages;
   }
 
