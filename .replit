@@ -22,7 +22,7 @@ externalPort = 3000
 PORT = "5000"
 
 [agent]
-integrations = ["outlook:1.0.0"]
+integrations = ["outlook:1.0.0", "javascript_database:1.0.0"]
 
 [workflows]
 runButton = "Project"

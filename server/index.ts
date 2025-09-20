@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -13,8 +15,16 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Configure session middleware
+// Configure PostgreSQL session store
+const PgSession = connectPgSimple(session);
+
+// Configure session middleware with PostgreSQL store
 app.use(session({
+  store: new PgSession({
+    pool: pool,
+    tableName: 'sessions',
+    createTableIfMissing: true
+  }),
   secret: process.env.SESSION_SECRET || "quantum-mail-secret-key-super-secure-2024", 
   resave: false,
   saveUninitialized: false,

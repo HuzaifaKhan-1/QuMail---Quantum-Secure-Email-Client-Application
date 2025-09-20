@@ -67,6 +67,12 @@ export const keyRequests = pgTable("key_requests", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const sessions = pgTable("sessions", {
+  sid: text("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire").notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

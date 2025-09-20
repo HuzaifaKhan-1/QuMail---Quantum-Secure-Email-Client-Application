@@ -15,10 +15,9 @@ import {
   type InsertQuantumKey,
   type InsertKeyRequest
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { sql, eq, desc } from "drizzle-orm"; // Assuming these are available from drizzle-orm
-import * as fs from "fs";
-import * as path from "path";
 
 export interface IStorage {
   // User methods
@@ -52,292 +51,113 @@ export interface IStorage {
   updateKeyRequest(requestId: string, updates: Partial<KeyRequest>): Promise<KeyRequest | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private static instance: MemStorage;
-  private users: Map<string, User> = new Map();
-  private messages: Map<string, Message> = new Map();
-  private quantumKeys: Map<string, QuantumKey> = new Map();
-  private auditLogs: Map<string, AuditLog> = new Map();
-  private keyRequests: Map<string, KeyRequest> = new Map();
-  private dataDir = path.join(process.cwd(), 'data');
-
-  constructor() {
-    // Singleton pattern to ensure data persistence
-    if (MemStorage.instance) {
-      return MemStorage.instance;
-    }
-
-    // Ensure data directory exists
-    if (!fs.existsSync(this.dataDir)) {
-      fs.mkdirSync(this.dataDir, { recursive: true });
-    }
-
-    // Load existing data from files
-    this.loadData();
-
-    // Initialize with some sample quantum keys if no keys exist
-    if (this.quantumKeys.size === 0) {
-      this.initializeSampleKeys();
-    }
-
-    MemStorage.instance = this;
-  }
-
-  private loadData() {
-    try {
-      // Load users
-      const usersFile = path.join(this.dataDir, 'users.json');
-      if (fs.existsSync(usersFile)) {
-        const usersData = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
-        for (const [id, user] of Object.entries(usersData)) {
-          this.users.set(id, {
-            ...user as User,
-            createdAt: new Date((user as any).createdAt)
-          });
-        }
-      }
-
-      // Load messages
-      const messagesFile = path.join(this.dataDir, 'messages.json');
-      if (fs.existsSync(messagesFile)) {
-        const messagesData = JSON.parse(fs.readFileSync(messagesFile, 'utf8'));
-        for (const [id, message] of Object.entries(messagesData)) {
-          this.messages.set(id, {
-            ...message as Message,
-            receivedAt: new Date((message as any).receivedAt)
-          });
-        }
-      }
-
-      // Load quantum keys
-      const keysFile = path.join(this.dataDir, 'keys.json');
-      if (fs.existsSync(keysFile)) {
-        const keysData = JSON.parse(fs.readFileSync(keysFile, 'utf8'));
-        for (const [id, key] of Object.entries(keysData)) {
-          this.quantumKeys.set(id, {
-            ...key as QuantumKey,
-            expiryTime: new Date((key as any).expiryTime),
-            createdAt: new Date((key as any).createdAt)
-          });
-        }
-      }
-
-      // Load audit logs
-      const logsFile = path.join(this.dataDir, 'logs.json');
-      if (fs.existsSync(logsFile)) {
-        const logsData = JSON.parse(fs.readFileSync(logsFile, 'utf8'));
-        for (const [id, log] of Object.entries(logsData)) {
-          this.auditLogs.set(id, {
-            ...log as AuditLog,
-            timestamp: new Date((log as any).timestamp)
-          });
-        }
-      }
-
-      // Load key requests
-      const requestsFile = path.join(this.dataDir, 'requests.json');
-      if (fs.existsSync(requestsFile)) {
-        const requestsData = JSON.parse(fs.readFileSync(requestsFile, 'utf8'));
-        for (const [id, request] of Object.entries(requestsData)) {
-          this.keyRequests.set(id, {
-            ...request as KeyRequest,
-            createdAt: new Date((request as any).createdAt)
-          });
-        }
-      }
-
-      console.log(`Loaded ${this.users.size} users, ${this.messages.size} messages, ${this.quantumKeys.size} keys`);
-    } catch (error) {
-      console.warn('Failed to load persisted data:', error);
-    }
-  }
-
-  private saveData() {
-    try {
-      // Save users
-      const usersData = Object.fromEntries(this.users.entries());
-      fs.writeFileSync(path.join(this.dataDir, 'users.json'), JSON.stringify(usersData, null, 2));
-
-      // Save messages
-      const messagesData = Object.fromEntries(this.messages.entries());
-      fs.writeFileSync(path.join(this.dataDir, 'messages.json'), JSON.stringify(messagesData, null, 2));
-
-      // Save quantum keys
-      const keysData = Object.fromEntries(this.quantumKeys.entries());
-      fs.writeFileSync(path.join(this.dataDir, 'keys.json'), JSON.stringify(keysData, null, 2));
-
-      // Save audit logs
-      const logsData = Object.fromEntries(this.auditLogs.entries());
-      fs.writeFileSync(path.join(this.dataDir, 'logs.json'), JSON.stringify(logsData, null, 2));
-
-      // Save key requests
-      const requestsData = Object.fromEntries(this.keyRequests.entries());
-      fs.writeFileSync(path.join(this.dataDir, 'requests.json'), JSON.stringify(requestsData, null, 2));
-    } catch (error) {
-      console.error('Failed to save data:', error);
-    }
-  }
-
-  private initializeSampleKeys() {
-    const sampleKeys: InsertQuantumKey[] = [
-      {
-        keyId: "QK-2024-0127-847B3F",
-        keyMaterial: Buffer.from(crypto.getRandomValues(new Uint8Array(4096))).toString('base64'),
-        keyLength: 4096,
-        maxConsumptionBytes: 4096,
-        expiryTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-      {
-        keyId: "QK-2024-0127-9C8E2A",
-        keyMaterial: Buffer.from(crypto.getRandomValues(new Uint8Array(8192))).toString('base64'),
-        keyLength: 8192,
-        maxConsumptionBytes: 8192,
-        expiryTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      }
-    ];
-
-    for (const key of sampleKeys) {
-      this.createQuantumKey(key);
-    }
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = {
-      ...insertUser,
-      id,
-      smtpConfig: insertUser.smtpConfig || null,
-      imapConfig: insertUser.imapConfig || null,
-      defaultSecurityLevel: insertUser.defaultSecurityLevel || "level1",
-      createdAt: new Date()
-    };
-    this.users.set(id, user);
-    this.saveData();
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-
-    const updatedUser = { ...user, ...updates };
-    this.users.set(id, updatedUser);
-    this.saveData();
-    return updatedUser;
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
   }
 
   // Message methods
   async getMessagesByUser(userId: string, folder = "inbox", limit = 50): Promise<Message[]> {
-    const messages = Array.from(this.messages.values())
-      .filter((msg: Message) => msg.userId === userId && msg.folder === folder)
-      .sort((a: Message, b: Message) => new Date(b.receivedAt!).getTime() - new Date(a.receivedAt!).getTime())
-      .slice(0, limit);
+    const messagesList = await db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.userId, userId), eq(messages.folder, folder)))
+      .orderBy(desc(messages.receivedAt))
+      .limit(limit);
 
-    console.log(`Retrieved ${messages.length} messages for user ${userId} in folder ${folder}`);
-    return messages;
+    console.log(`Retrieved ${messagesList.length} messages for user ${userId} in folder ${folder}`);
+    return messagesList;
   }
 
   async getMessage(id: string): Promise<Message | undefined> {
-    return this.messages.get(id);
+    const [message] = await db.select().from(messages).where(eq(messages.id, id));
+    return message || undefined;
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const id = randomUUID();
-    const message: Message = {
-      ...insertMessage,
-      id,
-      body: insertMessage.body || null,
-      encryptedBody: insertMessage.encryptedBody || null,
-      keyId: insertMessage.keyId || null,
-      isEncrypted: insertMessage.isEncrypted || false,
-      isDecrypted: insertMessage.isDecrypted || false,
-      metadata: (insertMessage as any).metadata || null,
-      attachments: insertMessage.attachments || null,
-      encryptedAttachments: (insertMessage as any).encryptedAttachments || null,
-      folder: insertMessage.folder || "inbox",
-      receivedAt: new Date()
-    };
-    this.messages.set(id, message);
-    this.saveData();
+    const [message] = await db
+      .insert(messages)
+      .values(insertMessage)
+      .returning();
     return message;
   }
 
   async updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined> {
-    const message = this.messages.get(id);
-    if (!message) return undefined;
-
-    const updatedMessage = { ...message, ...updates };
-    this.messages.set(id, updatedMessage);
-    this.saveData();
-    return updatedMessage;
+    const [message] = await db
+      .update(messages)
+      .set(updates)
+      .where(eq(messages.id, id))
+      .returning();
+    return message || undefined;
   }
 
   async deleteMessage(id: string): Promise<boolean> {
-    return this.messages.delete(id);
+    const result = await db.delete(messages).where(eq(messages.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Quantum key methods
   async getQuantumKey(keyId: string): Promise<QuantumKey | undefined> {
-    return Array.from(this.quantumKeys.values()).find(key => key.keyId === keyId);
+    const [key] = await db.select().from(quantumKeys).where(eq(quantumKeys.keyId, keyId));
+    return key || undefined;
   }
 
   async getActiveKeys(): Promise<QuantumKey[]> {
-    return Array.from(this.quantumKeys.values())
-      .filter(key => key.isActive && key.expiryTime > new Date())
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return await db
+      .select()
+      .from(quantumKeys)
+      .where(and(eq(quantumKeys.isActive, true)))
+      .orderBy(quantumKeys.createdAt);
   }
 
   async createQuantumKey(insertKey: InsertQuantumKey): Promise<QuantumKey> {
-    const id = randomUUID();
-    const key: QuantumKey = {
-      ...insertKey,
-      id,
-      keyMaterial: insertKey.keyMaterial || null,
-      consumedBytes: insertKey.consumedBytes || 0,
-      isActive: insertKey.isActive !== undefined ? insertKey.isActive : true,
-      createdAt: new Date()
-    };
-    this.quantumKeys.set(id, key);
-    this.saveData();
+    const [key] = await db
+      .insert(quantumKeys)
+      .values(insertKey)
+      .returning();
     return key;
   }
 
   async updateQuantumKey(keyId: string, updates: Partial<QuantumKey>): Promise<QuantumKey | undefined> {
-    const key = await this.getQuantumKey(keyId);
-    if (!key) return undefined;
-
-    const updatedKey = { ...key, ...updates };
-    this.quantumKeys.set(key.id, updatedKey);
-    this.saveData();
-    return updatedKey;
-  }
-
-  async deleteQuantumKey(keyId: string): Promise<boolean> {
-    const key = await this.getQuantumKey(keyId);
-    if (!key) return false;
-
-    const deleted = this.quantumKeys.delete(key.id);
-    if (deleted) {
-      this.saveData();
-    }
-    return deleted;
+    const [key] = await db
+      .update(quantumKeys)
+      .set(updates)
+      .where(eq(quantumKeys.keyId, keyId))
+      .returning();
+    return key || undefined;
   }
 
   async consumeKey(keyId: string, bytes: number): Promise<boolean> {
-    const key = this.quantumKeys.get(keyId);
+    const key = await this.getQuantumKey(keyId);
     if (!key || !key.isActive) return false;
 
     const newConsumedBytes = (key.consumedBytes || 0) + bytes;
@@ -351,78 +171,54 @@ export class MemStorage implements IStorage {
     return true;
   }
 
-  async updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean> {
-    const key = this.quantumKeys.get(keyId);
-    if (!key) return false;
-
-    const newConsumedBytes = (key.consumedBytes || 0) + consumedBytes;
-    if (newConsumedBytes > key.maxConsumptionBytes) return false;
-
-    await this.updateQuantumKey(keyId, {
-      consumedBytes: newConsumedBytes,
-      isActive: newConsumedBytes < key.maxConsumptionBytes
-    });
-
-    return true;
-  }
-
   // Audit log methods
   async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
-    const id = randomUUID();
-    const log: AuditLog = {
-      ...insertLog,
-      id,
-      details: insertLog.details || {},
-      userId: insertLog.userId || null,
-      ipAddress: insertLog.ipAddress || null,
-      userAgent: insertLog.userAgent || null,
-      timestamp: new Date()
-    };
-    this.auditLogs.set(id, log);
-    this.saveData();
+    const [log] = await db
+      .insert(auditLogs)
+      .values(insertLog)
+      .returning();
     return log;
   }
 
   async getAuditLogs(userId?: string, limit = 50): Promise<AuditLog[]> {
-    let logs = Array.from(this.auditLogs.values());
-
     if (userId) {
-      logs = logs.filter(log => log.userId === userId);
+      return await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.userId, userId))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit);
+    } else {
+      return await db
+        .select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit);
     }
-
-    return logs
-      .sort((a, b) => b.timestamp!.getTime() - a.timestamp!.getTime())
-      .slice(0, limit);
   }
 
   // Key request methods
   async createKeyRequest(insertRequest: InsertKeyRequest): Promise<KeyRequest> {
-    const id = randomUUID();
-    const request: KeyRequest = {
-      ...insertRequest,
-      id,
-      status: insertRequest.status || "pending",
-      recipient: insertRequest.recipient || null,
-      deliveryUri: insertRequest.deliveryUri || null,
-      createdAt: new Date()
-    };
-    this.keyRequests.set(id, request);
-    this.saveData();
+    const [request] = await db
+      .insert(keyRequests)
+      .values(insertRequest)
+      .returning();
     return request;
   }
 
   async getKeyRequest(requestId: string): Promise<KeyRequest | undefined> {
-    return Array.from(this.keyRequests.values()).find(req => req.requestId === requestId);
+    const [request] = await db.select().from(keyRequests).where(eq(keyRequests.requestId, requestId));
+    return request || undefined;
   }
 
   async updateKeyRequest(requestId: string, updates: Partial<KeyRequest>): Promise<KeyRequest | undefined> {
-    const request = this.keyRequests.get(requestId);
-    if (!request) return undefined;
-
-    const updatedRequest = { ...request, ...updates };
-    this.keyRequests.set(request.id, updatedRequest);
-    return updatedRequest;
+    const [request] = await db
+      .update(keyRequests)
+      .set(updates)
+      .where(eq(keyRequests.requestId, requestId))
+      .returning();
+    return request || undefined;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
