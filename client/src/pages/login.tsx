@@ -310,6 +310,10 @@ export default function Login() {
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/50 animate-pulse">
               <Shield className="h-7 w-7 text-white" />
             </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">QuMail</h1>
+              <p className="text-sm text-blue-300">Quantum Secure Email</p>
+            </div>
           </div>
           <p className="text-sm text-blue-200/80">
             Secure your communications with quantum encryption
