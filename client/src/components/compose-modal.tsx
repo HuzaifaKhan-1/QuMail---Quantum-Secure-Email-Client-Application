@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
@@ -20,11 +21,15 @@ import {
   Upload,
   AlertCircle
 } from "lucide-react";
-import { SecurityLevel, type SendEmailRequest } from "@/lib/types";
+import { SecurityLevel, type SendEmailRequest, type Message } from "@/lib/types";
 
 interface ComposeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  replyData?: {
+    type: 'reply' | 'reply-all' | 'forward' | null;
+    message: Message | null;
+  };
 }
 
 interface AttachmentFile {
@@ -32,13 +37,41 @@ interface AttachmentFile {
   id: string;
 }
 
-export default function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
+export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModalProps) {
   const { toast } = useToast();
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [securityLevel, setSecurityLevel] = useState<SecurityLevel>(SecurityLevel.LEVEL1_OTP);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+
+  // Effect to populate fields based on reply data
+  React.useEffect(() => {
+    if (replyData?.type && replyData?.message) {
+      const { type, message } = replyData;
+      
+      switch (type) {
+        case 'reply':
+          setTo(message.from);
+          setSubject(message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`);
+          setBody(`\n\n--- Original Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\n\n${message.body}`);
+          break;
+          
+        case 'reply-all':
+          // For reply-all, we'd need to include CC recipients if they exist
+          setTo(message.from);
+          setSubject(message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`);
+          setBody(`\n\n--- Original Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\n\n${message.body}`);
+          break;
+          
+        case 'forward':
+          setTo("");
+          setSubject(message.subject.startsWith('Fwd: ') ? message.subject : `Fwd: ${message.subject}`);
+          setBody(`\n\n--- Forwarded Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\nDate: ${new Date(message.receivedAt).toLocaleString()}\n\n${message.body}`);
+          break;
+      }
+    }
+  }, [replyData]);
 
   const { data: keyPoolStats } = useQuery({
     queryKey: ["/api/keys/pool"],
@@ -175,7 +208,12 @@ export default function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
             <Shield className="h-5 w-5" />
-            <span>Compose Secure Email</span>
+            <span>
+              {replyData?.type === 'reply' ? 'Reply to Message' :
+               replyData?.type === 'reply-all' ? 'Reply All to Message' :
+               replyData?.type === 'forward' ? 'Forward Message' :
+               'Compose Secure Email'}
+            </span>
           </DialogTitle>
         </DialogHeader>
 
@@ -279,21 +317,23 @@ export default function ComposeModal({ isOpen, onClose }: ComposeModalProps) {
                 Attachments:
               </Label>
               <div className="col-span-11 space-y-4">
-                <div className="relative border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
+                <div 
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => document.querySelector<HTMLInputElement>('[data-testid="modal-input-file"]')?.click()}
+                >
                   <div className="space-y-2 pointer-events-none">
                     <Upload className="h-6 w-6 text-muted-foreground mx-auto" />
                     <p className="text-sm text-muted-foreground">Drag files here or click to browse</p>
                     <p className="text-xs text-muted-foreground">Max file size: 10MB</p>
                   </div>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    data-testid="modal-input-file"
-                    style={{ pointerEvents: 'all' }}
-                  />
                 </div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  data-testid="modal-input-file"
+                />
 
                 {/* Attachment List */}
                 {attachments.length > 0 && (

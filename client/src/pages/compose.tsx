@@ -336,22 +336,24 @@ export default function Compose() {
                     Attachments:
                   </Label>
                   <div className="col-span-11 space-y-4">
-                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center relative">
-                      <div className="space-y-2">
+                    <div 
+                      className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="space-y-2 pointer-events-none">
                         <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
                         <p className="text-sm text-muted-foreground">Drag files here or click to browse</p>
                         <p className="text-xs text-muted-foreground">Max file size: 10MB</p>
                       </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        data-testid="input-file"
-                        style={{ pointerEvents: 'all' }}
-                      />
                     </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      data-testid="input-file"
+                    />
 
                     {/* Attachment List */}
                     {attachments.length > 0 && (

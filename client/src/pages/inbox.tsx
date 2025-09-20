@@ -26,7 +26,11 @@ export default function Inbox() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  
+  const [replyData, setReplyData] = useState<{
+    type: 'reply' | 'reply-all' | 'forward' | null;
+    message: Message | null;
+  }>({ type: null, message: null });
+
   // Get current folder from URL path
   const [location] = useLocation();
   const currentFolder = location === "/sent" ? "sent" : "inbox";
@@ -89,19 +93,19 @@ export default function Inbox() {
   };
 
   const handleReply = (message: Message) => {
-    // Open compose modal with reply prefilled
+    setReplyData({ type: 'reply', message });
     setIsComposeOpen(true);
     console.log("Reply to:", message);
   };
 
   const handleReplyAll = (message: Message) => {
-    // Open compose modal with reply all prefilled
+    setReplyData({ type: 'reply-all', message });
     setIsComposeOpen(true);
     console.log("Reply All to:", message);
   };
 
   const handleForward = (message: Message) => {
-    // Open compose modal with forward prefilled
+    setReplyData({ type: 'forward', message });
     setIsComposeOpen(true);
     console.log("Forward:", message);
   };
@@ -120,7 +124,7 @@ export default function Inbox() {
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar unreadCount={getUnreadCount()} />
-      
+
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4">
@@ -150,7 +154,7 @@ export default function Inbox() {
                 )}
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Search */}
               <div className="relative">
@@ -164,7 +168,7 @@ export default function Inbox() {
                   data-testid="input-search"
                 />
               </div>
-              
+
               {/* Actions */}
               <Button
                 onClick={() => setIsComposeOpen(true)}
@@ -174,7 +178,7 @@ export default function Inbox() {
                 <Plus className="h-4 w-4" />
                 <span>Compose</span>
               </Button>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -214,8 +218,12 @@ export default function Inbox() {
 
       {/* Compose Modal */}
       <ComposeModal
-        isOpen={isComposeOpen}
-        onClose={() => setIsComposeOpen(false)}
+        isOpen={isComposeOpen} 
+        onClose={() => {
+          setIsComposeOpen(false);
+          setReplyData({ type: null, message: null });
+        }}
+        replyData={replyData}
       />
     </div>
   );
