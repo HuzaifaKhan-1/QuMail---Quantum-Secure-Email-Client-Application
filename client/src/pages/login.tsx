@@ -265,15 +265,15 @@ export default function Login() {
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
       {/* Quantum particle background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-purple-950 dark:from-slate-950 dark:via-blue-950 dark:to-purple-950"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-blue-100 to-cyan-50"></div>
       <QuantumParticles />
       
       {/* Quantum grid overlay */}
-      <div className="absolute inset-0 opacity-20">
+      <div className="absolute inset-0 opacity-30">
         <div className="absolute inset-0" style={{
           backgroundImage: `
-            linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
+            linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px)
           `,
           backgroundSize: '50px 50px'
         }}></div>
@@ -283,20 +283,20 @@ export default function Login() {
         {/* Left side - "Qu" with dynamic quantum particle effect */}
         <div className="flex-1 flex justify-end pr-12">
           <div className="relative">
-            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 animate-pulse">
+            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 animate-pulse">
               Qu
             </div>
             {/* Dynamic quantum orb effect around "Qu" */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-32 h-32 relative">
-                <div className="absolute inset-0 rounded-full border-2 border-blue-400/30 animate-spin" style={{ animation: 'spin 3s linear infinite' }}></div>
-                <div className="absolute inset-2 rounded-full border border-purple-400/40 animate-spin" style={{ animation: 'spin 2s linear infinite reverse' }}></div>
-                <div className="absolute inset-4 rounded-full border border-cyan-400/20 animate-pulse"></div>
+                <div className="absolute inset-0 rounded-full border-2 border-blue-600/40 animate-spin" style={{ animation: 'spin 3s linear infinite' }}></div>
+                <div className="absolute inset-2 rounded-full border border-purple-600/50 animate-spin" style={{ animation: 'spin 2s linear infinite reverse' }}></div>
+                <div className="absolute inset-4 rounded-full border border-cyan-600/30 animate-pulse"></div>
                 {/* Floating quantum particles */}
-                <div className="absolute top-2 left-4 w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.5s' }}></div>
-                <div className="absolute bottom-3 right-2 w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }}></div>
-                <div className="absolute top-6 right-6 w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '1.8s' }}></div>
-                <div className="absolute bottom-6 left-3 w-1 h-1 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '2.2s' }}></div>
+                <div className="absolute top-2 left-4 w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                <div className="absolute bottom-3 right-2 w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }}></div>
+                <div className="absolute top-6 right-6 w-1 h-1 bg-cyan-600 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '1.8s' }}></div>
+                <div className="absolute bottom-6 left-3 w-1 h-1 bg-violet-600 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '2.2s' }}></div>
               </div>
             </div>
           </div>
@@ -311,32 +311,32 @@ export default function Login() {
               <Shield className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">QuMail</h1>
-              <p className="text-sm text-blue-300">Quantum Secure Email</p>
+              <h1 className="text-3xl font-bold text-gray-800">QuMail</h1>
+              <p className="text-sm text-blue-600">Quantum Secure Email</p>
             </div>
           </div>
-          <p className="text-sm text-blue-200/80">
+          <p className="text-sm text-blue-700/80">
             Secure your communications with quantum encryption
           </p>
         </div>
 
-        <Card className="backdrop-blur-xl bg-black/20 border-blue-500/30 shadow-2xl shadow-blue-500/20">
+        <Card className="backdrop-blur-xl bg-white/90 border-blue-300/50 shadow-2xl shadow-blue-300/30">
           <CardHeader>
-            <CardTitle className="text-center text-white">
+            <CardTitle className="text-center text-gray-800">
               {isLogin ? "Sign In" : "Create Account"}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs value={isLogin ? "login" : "register"} onValueChange={(value) => setIsLogin(value === "login")}>
-              <TabsList className="grid w-full grid-cols-2 bg-black/30 border-blue-500/50">
-                <TabsTrigger value="login" data-testid="tab-login" className="text-blue-200 data-[state=active]:bg-blue-600/50 data-[state=active]:text-white">Sign In</TabsTrigger>
-                <TabsTrigger value="register" data-testid="tab-register" className="text-blue-200 data-[state=active]:bg-blue-600/50 data-[state=active]:text-white">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 bg-blue-50/80 border-blue-300/50">
+                <TabsTrigger value="login" data-testid="tab-login" className="text-blue-700 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Sign In</TabsTrigger>
+                <TabsTrigger value="register" data-testid="tab-register" className="text-blue-700 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-blue-200">Email</Label>
+                    <Label htmlFor="email" className="text-gray-700">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -345,11 +345,11 @@ export default function Login() {
                       placeholder="your.email@example.com"
                       required
                       data-testid="input-email"
-                      className="bg-black/30 border-blue-500/50 text-white placeholder:text-blue-300/50 focus:border-blue-400 focus:ring-blue-400/30"
+                      className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-blue-200">Password</Label>
+                    <Label htmlFor="password" className="text-gray-700">Password</Label>
                     <Input
                       id="password"
                       type="password"
@@ -358,7 +358,7 @@ export default function Login() {
                       placeholder="••••••••"
                       required
                       data-testid="input-password"
-                      className="bg-black/30 border-blue-500/50 text-white placeholder:text-blue-300/50 focus:border-blue-400 focus:ring-blue-400/30"
+                      className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
                     />
                   </div>
                   <Button
@@ -376,7 +376,7 @@ export default function Login() {
               <TabsContent value="register">
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div>
-                      <Label htmlFor="username" className="text-blue-200">Username</Label>
+                      <Label htmlFor="username" className="text-gray-700">Username</Label>
                       <Input
                         id="username"
                         type="text"
@@ -384,11 +384,11 @@ export default function Login() {
                         onChange={(e) => setUsername(e.target.value)}
                         required
                         data-testid="input-username"
-                        className="bg-black/30 border-blue-500/50 text-white placeholder:text-blue-300/50 focus:border-blue-400 focus:ring-blue-400/30"
+                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="register-email" className="text-blue-200">Email Address</Label>
+                      <Label htmlFor="register-email" className="text-gray-700">Email Address</Label>
                       <Input
                         id="register-email"
                         type="email"
@@ -397,14 +397,14 @@ export default function Login() {
                         placeholder="your.email@qumail.com"
                         required
                         data-testid="input-register-email"
-                        className="bg-black/30 border-blue-500/50 text-white placeholder:text-blue-300/50 focus:border-blue-400 focus:ring-blue-400/30"
+                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
                       />
-                      <p className="text-xs text-blue-300/70 mt-1">
+                      <p className="text-xs text-blue-600/70 mt-1">
                         This will be your QuMail address for secure internal communication
                       </p>
                     </div>
                     <div>
-                      <Label htmlFor="register-password" className="text-blue-200">Password</Label>
+                      <Label htmlFor="register-password" className="text-gray-700">Password</Label>
                       <Input
                         id="register-password"
                         type="password"
@@ -412,7 +412,7 @@ export default function Login() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         data-testid="input-register-password"
-                        className="bg-black/30 border-blue-500/50 text-white placeholder:text-blue-300/50 focus:border-blue-400 focus:ring-blue-400/30"
+                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
                       />
                     </div>
                     <Button
@@ -435,12 +435,12 @@ export default function Login() {
 
             </Tabs>
 
-            <div className="mt-6 p-4 bg-black/20 border border-blue-500/30 rounded-lg backdrop-blur-sm">
+            <div className="mt-6 p-4 bg-blue-50/70 border border-blue-300/50 rounded-lg backdrop-blur-sm">
               <div className="flex items-center space-x-2 mb-2">
-                <Shield className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-blue-200">Quantum Security Features</span>
+                <Shield className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-gray-700">Quantum Security Features</span>
               </div>
-              <ul className="text-xs text-blue-300/80 space-y-1">
+              <ul className="text-xs text-gray-600 space-y-1">
                 <li>• Quantum Key Distribution (QKD) simulation</li>
                 <li>• One-Time Pad encryption for maximum security</li>
                 <li>• Post-Quantum Cryptography readiness</li>
@@ -454,10 +454,10 @@ export default function Login() {
         {/* Right side - "Mail" */}
         <div className="flex-1 flex justify-start pl-12">
           <div className="relative">
-            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400">
+            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600">
               Mail
             </div>
-            <div className="text-center text-sm text-blue-300/70 mt-2 tracking-widest">
+            <div className="text-center text-sm text-blue-600/70 mt-2 tracking-widest">
               SECURE • ENCRYPTED • PROTECTED
             </div>
           </div>
