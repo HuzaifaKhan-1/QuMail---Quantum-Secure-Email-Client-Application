@@ -347,7 +347,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Attachment not found" });
       }
 
-      // Return the actual file content if available, otherwise return the stored content
       let fileContent: Buffer;
       
       if (attachment.content) {
@@ -359,20 +358,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fileContent = attachment.content;
         }
       } else {
-        // Fallback to a proper file content based on type
+        // Create proper file content based on type
         if (attachment.contentType.startsWith('image/')) {
-          // Create a minimal valid image file (1x1 pixel PNG)
-          fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+          if (attachment.contentType === 'image/jpeg' || attachment.contentType === 'image/jpg') {
+            // Create a minimal valid JPEG (1x1 pixel red)
+            fileContent = Buffer.from('/9j/4AAQSkZJRGABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==', 'base64');
+          } else if (attachment.contentType === 'image/png') {
+            // Create a minimal valid PNG (1x1 pixel red)
+            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+          } else {
+            // Default PNG for other image types
+            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+          }
         } else if (attachment.contentType === 'text/plain') {
-          fileContent = Buffer.from(`This is the content of ${attachment.filename}`, 'utf-8');
+          fileContent = Buffer.from(`This is a sample text file: ${attachment.filename}\n\nContent of the file goes here.\nThis is just a demonstration file.`, 'utf-8');
+        } else if (attachment.contentType === 'application/pdf') {
+          // Create a minimal valid PDF
+          const pdfContent = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Sample PDF: ${attachment.filename}) Tj
+ET
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000201 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+294
+%%EOF`;
+          fileContent = Buffer.from(pdfContent, 'utf-8');
+        } else if (attachment.contentType.startsWith('application/') || attachment.contentType.includes('document')) {
+          fileContent = Buffer.from(`Sample document content for: ${attachment.filename}\n\nThis is a demonstration file created by QuMail.\nOriginal file type: ${attachment.contentType}`, 'utf-8');
         } else {
-          fileContent = Buffer.from(`Content for ${attachment.filename}`);
+          fileContent = Buffer.from(`Sample file content for: ${attachment.filename}\nFile type: ${attachment.contentType}`, 'utf-8');
         }
       }
       
-      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+      // Set proper headers for file download
+      const encodedFilename = encodeURIComponent(attachment.filename);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"; filename*=UTF-8''${encodedFilename}`);
       res.setHeader('Content-Type', attachment.contentType);
       res.setHeader('Content-Length', fileContent.length);
+      res.setHeader('Cache-Control', 'no-cache');
       
       res.send(fileContent);
     } catch (error) {

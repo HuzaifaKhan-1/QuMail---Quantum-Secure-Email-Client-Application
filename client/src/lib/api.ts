@@ -55,7 +55,7 @@ export const api = {
     return response.json();
   },
 
-  async downloadAttachment(messageId: string, attachmentIndex: number): Promise<Blob> {
+  async downloadAttachment(messageId: string, attachmentIndex: number): Promise<{ blob: Blob; filename: string; contentType: string }> {
     const response = await fetch(`/api/emails/${messageId}/attachments/${attachmentIndex}`);
 
     if (!response.ok) {
@@ -63,7 +63,20 @@ export const api = {
       throw new Error(error.message || "Failed to download attachment");
     }
 
-    return response.blob();
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
+    
+    // Extract filename from Content-Disposition header
+    let filename = 'download';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { blob, filename, contentType };
   },
 
   async fetchEmails() {

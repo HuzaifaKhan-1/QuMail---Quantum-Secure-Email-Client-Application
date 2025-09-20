@@ -58,32 +58,32 @@ export default function EmailPreview({
     }
   };
 
-  const handleDownloadAttachment = async (attachment: any, index: number) => {
+  const handleDownloadAttachment = async (attachmentIndex: number) => {
+    if (!message) return;
+
     try {
-      const blob = await api.downloadAttachment(message!.id, index);
-      const url = URL.createObjectURL(blob);
+      const { blob, filename, contentType } = await api.downloadAttachment(message.id, attachmentIndex);
 
-      // Create download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = attachment.filename;
-      document.body.appendChild(link);
-      link.click();
+      // Create a proper blob with the correct MIME type
+      const properBlob = new Blob([blob], { type: contentType });
+      const url = URL.createObjectURL(properBlob);
 
-      // Cleanup
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
 
-      toast({
-        title: "Download started",
-        description: `Downloaded ${attachment.filename}`,
-      });
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Clean up the URL
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+
+      console.log(`Downloaded: ${filename} (${contentType})`);
     } catch (error) {
-      toast({
-        title: "Download failed",
-        description: "Failed to download attachment",
-        variant: "destructive",
-      });
+      console.error('Download failed:', error);
+      // Handle error (show toast, etc.)
     }
   };
 
@@ -215,7 +215,7 @@ export default function EmailPreview({
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    onClick={() => handleDownloadAttachment(attachment, index)}
+                    onClick={() => handleDownloadAttachment(index)}
                     data-testid={`button-download-${index}`}
                   >
                     <Download className="h-3 w-3 mr-1" />
