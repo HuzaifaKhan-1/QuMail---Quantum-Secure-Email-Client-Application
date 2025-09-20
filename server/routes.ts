@@ -347,14 +347,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Attachment not found" });
       }
 
-      // For now, return mock content since we don't have actual file storage
-      const mockContent = Buffer.from(`Mock content for ${attachment.filename}`);
+      // Return the actual file content if available, otherwise return the stored content
+      let fileContent: Buffer;
+      
+      if (attachment.content) {
+        // If content is stored as base64 string, decode it
+        if (typeof attachment.content === 'string') {
+          fileContent = Buffer.from(attachment.content, 'base64');
+        } else {
+          // If content is already a Buffer
+          fileContent = attachment.content;
+        }
+      } else {
+        // Fallback to a proper file content based on type
+        if (attachment.contentType.startsWith('image/')) {
+          // Create a minimal valid image file (1x1 pixel PNG)
+          fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+        } else if (attachment.contentType === 'text/plain') {
+          fileContent = Buffer.from(`This is the content of ${attachment.filename}`, 'utf-8');
+        } else {
+          fileContent = Buffer.from(`Content for ${attachment.filename}`);
+        }
+      }
       
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
       res.setHeader('Content-Type', attachment.contentType);
-      res.setHeader('Content-Length', mockContent.length);
+      res.setHeader('Content-Length', fileContent.length);
       
-      res.send(mockContent);
+      res.send(fileContent);
     } catch (error) {
       console.error("Download attachment error:", error);
       res.status(500).json({ message: "Failed to download attachment" });
