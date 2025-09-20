@@ -104,7 +104,6 @@ export default function Compose() {
       title: "Draft saved",
       description: "Your draft has been saved locally.",
     });
-    console.log("Saving draft:", { to, subject, body, attachments: attachments.length });
   };
 
   const handleSend = async (e: React.FormEvent) => {

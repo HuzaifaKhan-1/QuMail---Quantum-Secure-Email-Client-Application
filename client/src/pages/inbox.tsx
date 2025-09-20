@@ -95,19 +95,16 @@ export default function Inbox() {
   const handleReply = (message: Message) => {
     setReplyData({ type: 'reply', message });
     setIsComposeOpen(true);
-    console.log("Reply to:", message);
   };
 
   const handleReplyAll = (message: Message) => {
     setReplyData({ type: 'reply-all', message });
     setIsComposeOpen(true);
-    console.log("Reply All to:", message);
   };
 
   const handleForward = (message: Message) => {
     setReplyData({ type: 'forward', message });
     setIsComposeOpen(true);
-    console.log("Forward:", message);
   };
 
   if (!userInfo?.user) {

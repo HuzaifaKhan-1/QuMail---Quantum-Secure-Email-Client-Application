@@ -39,9 +39,31 @@ export const api = {
     return response.json();
   },
 
-  async decryptEmail(messageId: string) {
-    const response = await apiRequest("POST", `/api/emails/${messageId}/decrypt`);
+  async decryptEmail(messageId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`/api/emails/${messageId}/decrypt`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to decrypt email");
+    }
+
     return response.json();
+  },
+
+  async downloadAttachment(messageId: string, attachmentIndex: number): Promise<Blob> {
+    const response = await fetch(`/api/emails/${messageId}/attachments/${attachmentIndex}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to download attachment");
+    }
+
+    return response.blob();
   },
 
   async fetchEmails() {

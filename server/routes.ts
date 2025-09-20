@@ -331,6 +331,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/emails/:messageId/attachments/:attachmentIndex", requireAuth, async (req, res) => {
+    try {
+      const { messageId, attachmentIndex } = req.params;
+      const message = await storage.getMessage(messageId);
+      
+      if (!message || message.userId !== req.session.userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const index = parseInt(attachmentIndex);
+      const attachment = message.attachments?.[index];
+      
+      if (!attachment) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+
+      // For now, return mock content since we don't have actual file storage
+      const mockContent = Buffer.from(`Mock content for ${attachment.filename}`);
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+      res.setHeader('Content-Type', attachment.contentType);
+      res.setHeader('Content-Length', mockContent.length);
+      
+      res.send(mockContent);
+    } catch (error) {
+      console.error("Download attachment error:", error);
+      res.status(500).json({ message: "Failed to download attachment" });
+    }
+  });
+
   
 
   // Audit logs
