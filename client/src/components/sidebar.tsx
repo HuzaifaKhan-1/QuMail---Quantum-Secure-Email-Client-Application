@@ -61,6 +61,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
       label: "Inbox", 
       badge: unreadCount > 0 ? unreadCount.toString() : undefined 
     },
+    { path: "/sent", icon: Send, label: "Sent" },
     { path: "/compose", icon: Send, label: "Compose" },
     { path: "/keys", icon: Key, label: "Key Dashboard" },
     { path: "/settings", icon: Settings, label: "Settings" },

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +26,10 @@ export default function Inbox() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [currentFolder, setCurrentFolder] = useState("inbox");
+  
+  // Get current folder from URL path
+  const [location] = useLocation();
+  const currentFolder = location === "/sent" ? "sent" : "inbox";
 
   const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/emails", currentFolder],

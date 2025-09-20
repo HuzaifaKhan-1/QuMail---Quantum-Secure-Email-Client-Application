@@ -7,12 +7,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import SecurityBadge from "./security-badge";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Reply, 
-  ReplyAll, 
-  Forward, 
-  MoreVertical, 
-  Shield, 
+import {
+  Reply,
+  ReplyAll,
+  Forward,
+  MoreVertical,
+  Shield,
   Download,
   Unlock,
   CheckCircle
@@ -175,7 +175,7 @@ export default function EmailPreview({ message }: EmailPreviewProps) {
         {/* Security Info */}
         {securityInfo && (
           <div className={`p-3 rounded-lg border ${
-            message.isDecrypted 
+            message.isDecrypted
               ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
               : 'bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800'
           }`}>

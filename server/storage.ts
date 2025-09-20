@@ -17,6 +17,8 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { sql, eq, desc } from "drizzle-orm"; // Assuming these are available from drizzle-orm
+import * as fs from "fs";
+import * as path from "path";
 
 export interface IStorage {
   // User methods
@@ -57,6 +59,7 @@ export class MemStorage implements IStorage {
   private quantumKeys: Map<string, QuantumKey> = new Map();
   private auditLogs: Map<string, AuditLog> = new Map();
   private keyRequests: Map<string, KeyRequest> = new Map();
+  private dataDir = path.join(process.cwd(), 'data');
 
   constructor() {
     // Singleton pattern to ensure data persistence
@@ -64,9 +67,115 @@ export class MemStorage implements IStorage {
       return MemStorage.instance;
     }
     
-    // Initialize with some sample quantum keys
-    this.initializeSampleKeys();
+    // Ensure data directory exists
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+    
+    // Load existing data from files
+    this.loadData();
+    
+    // Initialize with some sample quantum keys if no keys exist
+    if (this.quantumKeys.size === 0) {
+      this.initializeSampleKeys();
+    }
+    
     MemStorage.instance = this;
+  }
+
+  private loadData() {
+    try {
+      // Load users
+      const usersFile = path.join(this.dataDir, 'users.json');
+      if (fs.existsSync(usersFile)) {
+        const usersData = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        for (const [id, user] of Object.entries(usersData)) {
+          this.users.set(id, {
+            ...user as User,
+            createdAt: new Date((user as any).createdAt)
+          });
+        }
+      }
+
+      // Load messages
+      const messagesFile = path.join(this.dataDir, 'messages.json');
+      if (fs.existsSync(messagesFile)) {
+        const messagesData = JSON.parse(fs.readFileSync(messagesFile, 'utf8'));
+        for (const [id, message] of Object.entries(messagesData)) {
+          this.messages.set(id, {
+            ...message as Message,
+            receivedAt: new Date((message as any).receivedAt)
+          });
+        }
+      }
+
+      // Load quantum keys
+      const keysFile = path.join(this.dataDir, 'keys.json');
+      if (fs.existsSync(keysFile)) {
+        const keysData = JSON.parse(fs.readFileSync(keysFile, 'utf8'));
+        for (const [id, key] of Object.entries(keysData)) {
+          this.quantumKeys.set(id, {
+            ...key as QuantumKey,
+            expiryTime: new Date((key as any).expiryTime),
+            createdAt: new Date((key as any).createdAt)
+          });
+        }
+      }
+
+      // Load audit logs
+      const logsFile = path.join(this.dataDir, 'logs.json');
+      if (fs.existsSync(logsFile)) {
+        const logsData = JSON.parse(fs.readFileSync(logsFile, 'utf8'));
+        for (const [id, log] of Object.entries(logsData)) {
+          this.auditLogs.set(id, {
+            ...log as AuditLog,
+            timestamp: new Date((log as any).timestamp)
+          });
+        }
+      }
+
+      // Load key requests
+      const requestsFile = path.join(this.dataDir, 'requests.json');
+      if (fs.existsSync(requestsFile)) {
+        const requestsData = JSON.parse(fs.readFileSync(requestsFile, 'utf8'));
+        for (const [id, request] of Object.entries(requestsData)) {
+          this.keyRequests.set(id, {
+            ...request as KeyRequest,
+            createdAt: new Date((request as any).createdAt)
+          });
+        }
+      }
+
+      console.log(`Loaded ${this.users.size} users, ${this.messages.size} messages, ${this.quantumKeys.size} keys`);
+    } catch (error) {
+      console.warn('Failed to load persisted data:', error);
+    }
+  }
+
+  private saveData() {
+    try {
+      // Save users
+      const usersData = Object.fromEntries(this.users.entries());
+      fs.writeFileSync(path.join(this.dataDir, 'users.json'), JSON.stringify(usersData, null, 2));
+
+      // Save messages
+      const messagesData = Object.fromEntries(this.messages.entries());
+      fs.writeFileSync(path.join(this.dataDir, 'messages.json'), JSON.stringify(messagesData, null, 2));
+
+      // Save quantum keys
+      const keysData = Object.fromEntries(this.quantumKeys.entries());
+      fs.writeFileSync(path.join(this.dataDir, 'keys.json'), JSON.stringify(keysData, null, 2));
+
+      // Save audit logs
+      const logsData = Object.fromEntries(this.auditLogs.entries());
+      fs.writeFileSync(path.join(this.dataDir, 'logs.json'), JSON.stringify(logsData, null, 2));
+
+      // Save key requests
+      const requestsData = Object.fromEntries(this.keyRequests.entries());
+      fs.writeFileSync(path.join(this.dataDir, 'requests.json'), JSON.stringify(requestsData, null, 2));
+    } catch (error) {
+      console.error('Failed to save data:', error);
+    }
   }
 
   private initializeSampleKeys() {
@@ -116,6 +225,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date()
     };
     this.users.set(id, user);
+    this.saveData();
     return user;
   }
 
@@ -125,6 +235,7 @@ export class MemStorage implements IStorage {
 
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
+    this.saveData();
     return updatedUser;
   }
 
@@ -157,6 +268,7 @@ export class MemStorage implements IStorage {
       receivedAt: new Date()
     };
     this.messages.set(id, message);
+    this.saveData();
     return message;
   }
 
@@ -166,6 +278,7 @@ export class MemStorage implements IStorage {
 
     const updatedMessage = { ...message, ...updates };
     this.messages.set(id, updatedMessage);
+    this.saveData();
     return updatedMessage;
   }
 
@@ -195,6 +308,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date()
     };
     this.quantumKeys.set(id, key);
+    this.saveData();
     return key;
   }
 
@@ -204,6 +318,7 @@ export class MemStorage implements IStorage {
 
     const updatedKey = { ...key, ...updates };
     this.quantumKeys.set(key.id, updatedKey);
+    this.saveData();
     return updatedKey;
   }
 
@@ -235,6 +350,7 @@ export class MemStorage implements IStorage {
       timestamp: new Date()
     };
     this.auditLogs.set(id, log);
+    this.saveData();
     return log;
   }
 
@@ -262,6 +378,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date()
     };
     this.keyRequests.set(id, request);
+    this.saveData();
     return request;
   }
 

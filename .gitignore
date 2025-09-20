@@ -1,5 +1,8 @@
 node_modules
+.env
 dist
+.DS_Store
+data/
 .DS_Store
 server/public
 vite.config.ts.*
