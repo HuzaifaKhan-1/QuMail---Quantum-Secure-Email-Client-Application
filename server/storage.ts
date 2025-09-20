@@ -337,10 +337,25 @@ export class MemStorage implements IStorage {
   }
 
   async consumeKey(keyId: string, bytes: number): Promise<boolean> {
-    const key = await this.getQuantumKey(keyId);
+    const key = this.quantumKeys.get(keyId);
     if (!key || !key.isActive) return false;
 
     const newConsumedBytes = (key.consumedBytes || 0) + bytes;
+    if (newConsumedBytes > key.maxConsumptionBytes) return false;
+
+    await this.updateQuantumKey(keyId, {
+      consumedBytes: newConsumedBytes,
+      isActive: newConsumedBytes < key.maxConsumptionBytes
+    });
+
+    return true;
+  }
+
+  async updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean> {
+    const key = this.quantumKeys.get(keyId);
+    if (!key) return false;
+
+    const newConsumedBytes = (key.consumedBytes || 0) + consumedBytes;
     if (newConsumedBytes > key.maxConsumptionBytes) return false;
 
     await this.updateQuantumKey(keyId, {
