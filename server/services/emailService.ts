@@ -72,19 +72,19 @@ export class EmailService {
         throw new Error(`Recipient ${options.to} not found on QuMail platform`);
       }
 
-      // Store message in sender's sent folder
+      // Store message in sender's sent folder (always decrypted for sender)
       await storage.createMessage({
         userId: user.id,
         messageId: `sent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         from: user.email,
         to: options.to,
         subject: options.subject,
-        body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
+        body: options.body, // Always store original body for sender
         encryptedBody: encryptedBody,
         securityLevel: options.securityLevel,
         keyId,
         isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
-        isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
+        isDecrypted: true, // Sender can always see their own messages
         metadata: metadata,
         attachments: options.attachments ? options.attachments.map(a => ({
           filename: a.filename,
@@ -95,28 +95,30 @@ export class EmailService {
         folder: "sent"
       });
 
-      // Store message in recipient's inbox
-      await storage.createMessage({
-        userId: recipient.id,
-        messageId: `inbox-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        from: user.email,
-        to: options.to,
-        subject: options.subject,
-        body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
-        encryptedBody: encryptedBody,
-        securityLevel: options.securityLevel,
-        keyId,
-        isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
-        isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
-        metadata: metadata,
-        attachments: options.attachments ? options.attachments.map(a => ({
-          filename: a.filename,
-          contentType: a.contentType,
-          size: a.content.length
-        })) : null,
-        encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
-        folder: "inbox"
-      });
+      // Only store in recipient's inbox if sender and recipient are different users
+      if (recipient.id !== user.id) {
+        await storage.createMessage({
+          userId: recipient.id,
+          messageId: `inbox-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          from: user.email,
+          to: options.to,
+          subject: options.subject,
+          body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
+          encryptedBody: encryptedBody,
+          securityLevel: options.securityLevel,
+          keyId,
+          isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
+          isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
+          metadata: metadata,
+          attachments: options.attachments ? options.attachments.map(a => ({
+            filename: a.filename,
+            contentType: a.contentType,
+            size: a.content.length
+          })) : null,
+          encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
+          folder: "inbox"
+        });
+      }
 
       // Log the email send action
       await storage.createAuditLog({
@@ -132,16 +134,19 @@ export class EmailService {
         }
       });
 
-      await storage.createAuditLog({
-        userId: recipient.id,
-        action: "email_received",
-        details: {
-          from: user.email,
-          subject: options.subject,
-          securityLevel: options.securityLevel,
-          keyId
-        }
-      });
+      // Only log email received for different users
+      if (recipient.id !== user.id) {
+        await storage.createAuditLog({
+          userId: recipient.id,
+          action: "email_received",
+          details: {
+            from: user.email,
+            subject: options.subject,
+            securityLevel: options.securityLevel,
+            keyId
+          }
+        });
+      }
 
     } catch (error) {
       console.error("Failed to send email:", error);
