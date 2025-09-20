@@ -325,6 +325,17 @@ export class MemStorage implements IStorage {
     return updatedKey;
   }
 
+  async deleteQuantumKey(keyId: string): Promise<boolean> {
+    const key = await this.getQuantumKey(keyId);
+    if (!key) return false;
+
+    const deleted = this.quantumKeys.delete(key.id);
+    if (deleted) {
+      this.saveData();
+    }
+    return deleted;
+  }
+
   async consumeKey(keyId: string, bytes: number): Promise<boolean> {
     const key = await this.getQuantumKey(keyId);
     if (!key || !key.isActive) return false;

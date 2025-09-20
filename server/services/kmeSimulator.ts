@@ -49,6 +49,7 @@ interface QuantumKeyMaterial {
 
 class KMESimulator {
   private keyPool: Map<string, QuantumKeyMaterial> = new Map();
+  private keyStore: Map<string, QuantumKeyEntry> = new Map();
   private keyPoolStats = {
     totalKeys: 0,
     totalMB: 0,
@@ -271,7 +272,7 @@ class KMESimulator {
       const totalKeys = activeKeys.length;
 
       // Calculate total size used
-      const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.key_material.length * 3 / 4), 0); // Approximate size from base64
+      const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.keyMaterial ? key.keyMaterial.length * 3 / 4 : 0), 0); // Approximate size from base64
       const totalSizeMB = totalSizeBytes / (1024 * 1024);
       const remainingMB = Math.max(0, this.POOL_SIZE_MB - totalSizeMB);
 
@@ -298,8 +299,9 @@ class KMESimulator {
       // Clean up expired keys from memory and storage
       const now = new Date();
       for (const [keyId, key] of this.keyStore.entries()) {
-        if (key.expiry_time < Math.floor(now.getTime() / 1000)) {
+        if (key.expiryTime < now) {
           this.keyPool.delete(keyId);
+          this.keyStore.delete(keyId);
           await this.deleteKeyFromStorage(keyId);
         }
       }
@@ -309,13 +311,44 @@ class KMESimulator {
       if (currentSize < this.POOL_SIZE_TARGET) {
         const keysToAdd = this.POOL_SIZE_TARGET - currentSize;
         for (let i = 0; i < keysToAdd; i++) {
-          await this.generateQuantumKey();
+          await this.generateAndStoreQuantumKey();
         }
       }
       this.updateKeyPoolStats();
     } catch (error) {
       console.error("Key pool maintenance error:", error);
     }
+  }
+
+  private async generateAndStoreQuantumKey(): Promise<void> {
+    const keyLengthBits = this.DEFAULT_KEY_LENGTH;
+    const keyLengthBytes = Math.ceil(keyLengthBits / 8);
+    const quantumKeyMaterial = this.generateQuantumKey(keyLengthBits);
+    const keyId = `maintenance-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+    const storedKey: QuantumKeyEntry = {
+      keyId,
+      keyMaterial: quantumKeyMaterial,
+      keyLength: keyLengthBytes,
+      expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
+      consumedBytes: 0,
+      maxConsumptionBytes: keyLengthBytes,
+      isActive: true,
+      createdAt: new Date()
+    };
+
+    this.keyStore.set(keyId, storedKey);
+    
+    await storage.createQuantumKey({
+      keyId,
+      keyMaterial: quantumKeyMaterial,
+      keyLength: keyLengthBytes,
+      expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
+      consumedBytes: 0,
+      maxConsumptionBytes: keyLengthBytes,
+      isActive: true,
+      createdAt: new Date()
+    });
   }
 
   private async deleteKeyFromStorage(keyId: string): Promise<void> {
@@ -328,10 +361,26 @@ class KMESimulator {
     }
   }
 
+  async updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<void> {
+    try {
+      await storage.updateQuantumKey(keyId, { consumedBytes });
+    } catch (error) {
+      console.error(`Failed to update key usage: ${keyId}`, error);
+    }
+  }
+
+  async deactivateQuantumKey(keyId: string): Promise<void> {
+    try {
+      await storage.updateQuantumKey(keyId, { isActive: false });
+    } catch (error) {
+      console.error(`Failed to deactivate key: ${keyId}`, error);
+    }
+  }
+
   private updateKeyPoolStats() {
-    const activeKeys = Array.from(this.keyPool.values()).filter(key => key.isActive);
+    const activeKeys = Array.from(this.keyStore.values()).filter(key => key.isActive);
     const totalKeys = activeKeys.length;
-    const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.key_material.length * 3 / 4), 0); // Approximate size from base64
+    const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.keyMaterial ? key.keyMaterial.length * 3 / 4 : 0), 0); // Approximate size from base64
     const totalSizeMB = totalSizeBytes / (1024 * 1024);
     const remainingMB = Math.max(0, this.POOL_SIZE_MB - totalSizeMB);
 
