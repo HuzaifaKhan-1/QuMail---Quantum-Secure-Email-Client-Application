@@ -37,8 +37,25 @@ interface QuantumKeyEntry {
   createdAt: Date;
 }
 
+// Assuming QuantumKeyMaterial interface is defined elsewhere or implicitly used in changes
+interface QuantumKeyMaterial {
+  key_id: string;
+  key_material: string;
+  key_length_bits: number;
+  expiry_time: number; // Unix timestamp in seconds
+  consumed_bytes: number;
+}
+
+
 class KMESimulator {
-  private keyStore: Map<string, QuantumKeyEntry> = new Map();
+  private keyPool: Map<string, QuantumKeyMaterial> = new Map();
+  private keyPoolStats = {
+    totalKeys: 0,
+    totalMB: 0,
+    remainingMB: 0,
+    utilizationPercent: 0
+  };
+
   private readonly KEY_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
   private readonly KEY_EXPIRY_MINUTES = 24 * 60; // 24 hours in minutes
   private readonly POOL_SIZE_TARGET = 10; // Target number of keys in pool
@@ -47,18 +64,55 @@ class KMESimulator {
   private readonly POOL_SIZE_MB = 100; // 100MB pool size
 
   constructor() {
-    // Initialize with some keys
     this.initializeKeyPool();
   }
 
   private async initializeKeyPool() {
     console.log("Initializing KME key pool...");
-    await this.maintainKeyPool();
-    console.log(`Key pool initialized with ${this.keyStore.size} keys`);
+
+    // Load existing keys from storage first
+    await this.loadExistingKeys();
+
+    // Generate additional keys if needed
+    const currentPoolSize = this.keyPool.size;
+    const targetPoolSize = 10;
+
+    if (currentPoolSize < targetPoolSize) {
+      const keysToGenerate = targetPoolSize - currentPoolSize;
+      for (let i = 0; i < keysToGenerate; i++) {
+        await this.generateQuantumKey();
+      }
+    }
+
+    this.updateKeyPoolStats();
+    console.log(`Key pool initialized with ${this.keyPool.size} keys`);
+  }
+
+  private async loadExistingKeys() {
+    try {
+      const storage = (await import('../storage')).storage;
+      const existingKeys = await storage.getActiveKeys();
+
+      for (const key of existingKeys) {
+        if (key.keyMaterial) {
+          this.keyPool.set(key.keyId, {
+            key_id: key.keyId,
+            key_material: key.keyMaterial,
+            key_length_bits: key.keyLength * 8,
+            expiry_time: Math.floor(key.expiryTime.getTime() / 1000),
+            consumed_bytes: key.consumedBytes || 0
+          });
+        }
+      }
+
+      console.log(`Loaded ${existingKeys.length} existing keys from storage`);
+    } catch (error) {
+      console.log("No existing keys found, starting fresh");
+    }
   }
 
 
-  private generateQuantumKey(lengthBits: number): string {
+  private generateQuantumKey(lengthBits: number = this.DEFAULT_KEY_LENGTH): string {
     const lengthBytes = Math.ceil(lengthBits / 8);
     const keyBuffer = crypto.randomBytes(lengthBytes);
     const base64Key = keyBuffer.toString('base64');
@@ -69,23 +123,23 @@ class KMESimulator {
   async requestKey(request: KeyRequest): Promise<KeyResponse> {
     try {
       // Generate quantum key material
-      const keyLengthBytes = Math.ceil(request.key_length_bits / 8);
+      const keyLengthBits = request.key_length_bits || this.DEFAULT_KEY_LENGTH;
+      const keyLengthBytes = Math.ceil(keyLengthBits / 8);
+
       if (keyLengthBytes > this.MAX_KEY_SIZE_BYTES) {
         throw new Error(`Key size exceeds maximum of ${this.MAX_KEY_SIZE_BYTES} bytes`);
       }
 
-      const quantumKey = this.generateQuantumKey(request.key_length_bits);
+      const quantumKeyMaterial = this.generateQuantumKey(keyLengthBits);
 
       const keyId = `qkey-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
 
-      // Calculate expiry time
-      const expiryTime = new Date();
-      expiryTime.setMinutes(expiryTime.getMinutes() + this.KEY_EXPIRY_MINUTES);
+      // Calculate expiry time in seconds for storage
+      const expiryTimeSeconds = Math.floor((Date.now() + this.KEY_EXPIRY_MS) / 1000);
 
-      // Store the key
       const storedKey: QuantumKeyEntry = {
         keyId,
-        keyMaterial: quantumKey, // Ensure this is the base64 encoded key
+        keyMaterial: quantumKeyMaterial, // Ensure this is the base64 encoded key
         keyLength: keyLengthBytes,
         expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
         consumedBytes: 0,
@@ -95,7 +149,19 @@ class KMESimulator {
       };
 
       this.keyStore.set(keyId, storedKey);
-      console.log(`Stored key ${keyId} with material length: ${quantumKey.length}`);
+      console.log(`Stored key ${keyId} with material length: ${quantumKeyMaterial.length}`);
+
+      // Persist the key to storage
+      await storage.createQuantumKey({
+        keyId,
+        keyMaterial: quantumKeyMaterial,
+        keyLength: keyLengthBytes,
+        expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
+        consumedBytes: 0,
+        maxConsumptionBytes: keyLengthBytes,
+        isActive: true,
+        createdAt: new Date()
+      });
 
       // Log the key request
       await storage.createKeyRequest({
@@ -117,50 +183,81 @@ class KMESimulator {
     }
   }
 
-  async getKey(keyId: string): Promise<KeyMaterial | null> {
-    const key = this.keyStore.get(keyId);
-    if (!key || key.expiryTime < new Date()) {
-      console.log(`Key not found or expired: ${keyId}`);
+  async getKey(keyId: string): Promise<QuantumKeyMaterial | null> {
+    let key = this.keyPool.get(keyId);
+
+    // If key not in memory, try to load from storage
+    if (!key) {
+      try {
+        const storage = (await import('../storage')).storage;
+        const storedKey = await storage.getQuantumKey(keyId);
+
+        if (storedKey && storedKey.keyMaterial) {
+          key = {
+            key_id: storedKey.keyId,
+            key_material: storedKey.keyMaterial,
+            key_length_bits: storedKey.keyLength * 8,
+            expiry_time: Math.floor(storedKey.expiryTime.getTime() / 1000),
+            consumed_bytes: storedKey.consumedBytes || 0
+          };
+
+          // Add back to memory pool
+          this.keyPool.set(keyId, key);
+          console.log(`Loaded key from storage: ${keyId}`);
+        }
+      } catch (error) {
+        console.error(`Failed to load key from storage: ${keyId}`, error);
+      }
+    }
+
+    if (!key) {
+      console.error(`Key not found: ${keyId}`);
       return null;
     }
 
-    // Ensure key material is properly formatted
-    if (!key.keyMaterial) {
-      console.error(`Key material is empty for key: ${keyId}`);
+    // Check if key is expired
+    const now = Math.floor(Date.now() / 1000);
+    if (key.expiry_time < now) {
+      console.error(`Key expired: ${keyId}`);
+      this.keyPool.delete(keyId);
+      await this.deleteKeyFromStorage(keyId);
       return null;
     }
 
-    console.log(`Retrieved key ${keyId} for ${key.isActive ? 'active' : 'consumed'} usage`);
-
-    return {
-      key_id: keyId,
-      key_material: key.keyMaterial, // This should be base64 encoded
-      timestamp: new Date().toISOString()
-    };
+    return key;
   }
 
   async acknowledgeKeyUsage(keyId: string, ack: { consumed_bytes: number; message_id?: string }): Promise<boolean> {
     try {
-      const key = this.keyStore.get(keyId);
+      const key = this.keyPool.get(keyId);
 
       if (!key) {
-        return false;
+        console.warn(`Attempted to acknowledge usage for unknown key: ${keyId}`);
+        // Try to find it in storage if it was loaded but not yet in pool
+        const storedKey = await this.getKey(keyId);
+        if (!storedKey) {
+          return false;
+        }
+        // If found, proceed with acknowledgment
+        return this.acknowledgeKeyUsage(keyId, ack);
       }
 
-      const newConsumedBytes = (key.consumedBytes || 0) + ack.consumed_bytes;
+      const newConsumedBytes = (key.consumed_bytes || 0) + ack.consumed_bytes;
 
-      // Update consumed bytes
-      key.consumedBytes = newConsumedBytes;
-      
+      // Update consumed bytes in memory
+      key.consumed_bytes = newConsumedBytes;
+
+      // Persist updated key usage to storage
+      await storage.updateQuantumKeyUsage(keyId, newConsumedBytes);
+
       // Keep key available for decryption even if consumed
       // Only mark as inactive if it exceeds maximum usage significantly
-      if (newConsumedBytes >= key.maxConsumptionBytes * 2) {
+      if (newConsumedBytes >= key.key_length_bits * 1.5) { // Example: inactive if consumed 1.5x its own size
         key.isActive = false;
+        await storage.deactivateQuantumKey(keyId);
       }
-      
-      this.keyStore.set(keyId, key);
 
-      console.log(`Key ${keyId} usage acknowledged: ${newConsumedBytes}/${key.maxConsumptionBytes} bytes consumed`);
+      console.log(`Key ${keyId} usage acknowledged: ${newConsumedBytes}/${key.key_length_bits} bytes consumed`);
       return true;
     } catch (error) {
       console.error("KME acknowledge key usage error:", error);
@@ -174,16 +271,17 @@ class KMESimulator {
       const totalKeys = activeKeys.length;
 
       // Calculate total size used
-      const totalSizeBytes = activeKeys.reduce((sum, key) => sum + key.keyLength, 0);
+      const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.key_material.length * 3 / 4), 0); // Approximate size from base64
       const totalSizeMB = totalSizeBytes / (1024 * 1024);
       const remainingMB = Math.max(0, this.POOL_SIZE_MB - totalSizeMB);
 
-      return {
+      this.keyPoolStats = {
         availableKeys: totalKeys,
         totalMB: this.POOL_SIZE_MB,
         remainingMB: Math.round(remainingMB * 100) / 100,
         utilizationPercent: Math.round((totalSizeMB / this.POOL_SIZE_MB) * 100)
       };
+      return this.keyPoolStats;
     } catch (error) {
       console.error("Get key pool stats error:", error);
       return {
@@ -197,28 +295,52 @@ class KMESimulator {
 
   async maintainKeyPool(): Promise<void> {
     try {
-      // Clean up expired keys
+      // Clean up expired keys from memory and storage
       const now = new Date();
       for (const [keyId, key] of this.keyStore.entries()) {
-        if (key.expiryTime < now) {
-          this.keyStore.delete(keyId);
+        if (key.expiry_time < Math.floor(now.getTime() / 1000)) {
+          this.keyPool.delete(keyId);
+          await this.deleteKeyFromStorage(keyId);
         }
       }
 
-      // Generate new keys if pool is low
-      if (this.keyStore.size < this.POOL_SIZE_TARGET) {
-        const keysToAdd = this.POOL_SIZE_TARGET - this.keyStore.size;
+      // Ensure pool size is maintained
+      const currentSize = this.keyPool.size;
+      if (currentSize < this.POOL_SIZE_TARGET) {
+        const keysToAdd = this.POOL_SIZE_TARGET - currentSize;
         for (let i = 0; i < keysToAdd; i++) {
-          // Using default key length if not specified
-          await this.requestKey({
-            request_id: `maintenance-${Date.now()}-${i}`,
-            key_length_bits: this.DEFAULT_KEY_LENGTH
-          });
+          await this.generateQuantumKey();
         }
       }
+      this.updateKeyPoolStats();
     } catch (error) {
       console.error("Key pool maintenance error:", error);
     }
+  }
+
+  private async deleteKeyFromStorage(keyId: string): Promise<void> {
+    try {
+      const storage = (await import('../storage')).storage;
+      await storage.deleteQuantumKey(keyId);
+      console.log(`Deleted key ${keyId} from storage`);
+    } catch (error) {
+      console.error(`Failed to delete key ${keyId} from storage:`, error);
+    }
+  }
+
+  private updateKeyPoolStats() {
+    const activeKeys = Array.from(this.keyPool.values()).filter(key => key.isActive);
+    const totalKeys = activeKeys.length;
+    const totalSizeBytes = activeKeys.reduce((sum, key) => sum + (key.key_material.length * 3 / 4), 0); // Approximate size from base64
+    const totalSizeMB = totalSizeBytes / (1024 * 1024);
+    const remainingMB = Math.max(0, this.POOL_SIZE_MB - totalSizeMB);
+
+    this.keyPoolStats = {
+      availableKeys: totalKeys,
+      totalMB: this.POOL_SIZE_MB,
+      remainingMB: Math.round(remainingMB * 100) / 100,
+      utilizationPercent: Math.round((totalSizeMB / this.POOL_SIZE_MB) * 100)
+    };
   }
 }
 

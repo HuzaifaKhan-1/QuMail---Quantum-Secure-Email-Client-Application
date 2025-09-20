@@ -297,7 +297,7 @@ export class MemStorage implements IStorage {
   async getActiveKeys(): Promise<QuantumKey[]> {
     return Array.from(this.quantumKeys.values())
       .filter(key => key.isActive && key.expiryTime > new Date())
-      .sort((a, b) => a.createdAt!.getTime() - b.createdAt!.getTime());
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
   async createQuantumKey(insertKey: InsertQuantumKey): Promise<QuantumKey> {
