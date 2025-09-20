@@ -171,6 +171,21 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean> {
+    const key = await this.getQuantumKey(keyId);
+    if (!key) return false;
+
+    const newConsumedBytes = (key.consumedBytes || 0) + consumedBytes;
+    if (newConsumedBytes > key.maxConsumptionBytes) return false;
+
+    await this.updateQuantumKey(keyId, {
+      consumedBytes: newConsumedBytes,
+      isActive: newConsumedBytes < key.maxConsumptionBytes
+    });
+
+    return true;
+  }
+
   // Audit log methods
   async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
     const [log] = await db

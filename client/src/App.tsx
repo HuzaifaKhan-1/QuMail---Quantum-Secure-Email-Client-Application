@@ -8,6 +8,7 @@ import Inbox from "@/pages/inbox";
 import Compose from "@/pages/compose";
 import KeyDashboard from "@/pages/key-dashboard";
 import Settings from "@/pages/settings";
+import Audit from "@/pages/audit";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,9 @@ function Router() {
       <Route path="/settings">
         <ProtectedRoute component={Settings} />
       </Route>
+      <Route path="/audit">
+        <ProtectedRoute component={Audit} />
+      </Route>
       <Route path="/sent">
         <ProtectedRoute component={Inbox} />
       </Route>
@@ -84,6 +88,7 @@ function App() {
           <Route path="/compose" component={Compose} />
           <Route path="/keys" component={KeyDashboard} />
           <Route path="/settings" component={Settings} />
+          <Route path="/audit" component={Audit} />
           <Route path="/sent" component={Inbox} />
           <Route path="/" component={Login} />
           <Route component={NotFound} />
