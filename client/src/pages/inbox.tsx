@@ -81,11 +81,29 @@ export default function Inbox() {
 
   const getUnreadCount = () => {
     if (!messages) return 0;
-    return messages.filter(msg => !msg.isRead).length;
+    return messages.filter(msg => !msg.isDecrypted).length; // Using isDecrypted as read indicator
   };
 
   const getLastSyncTime = () => {
     return "2 minutes ago"; // This would come from actual sync metadata
+  };
+
+  const handleReply = (message: Message) => {
+    // Open compose modal with reply prefilled
+    setIsComposeOpen(true);
+    console.log("Reply to:", message);
+  };
+
+  const handleReplyAll = (message: Message) => {
+    // Open compose modal with reply all prefilled
+    setIsComposeOpen(true);
+    console.log("Reply All to:", message);
+  };
+
+  const handleForward = (message: Message) => {
+    // Open compose modal with forward prefilled
+    setIsComposeOpen(true);
+    console.log("Forward:", message);
   };
 
   if (!userInfo?.user) {
@@ -178,12 +196,18 @@ export default function Inbox() {
               folder={currentFolder}
               selectedMessageId={selectedMessage?.id}
               onSelectMessage={handleSelectMessage}
+              searchQuery={searchQuery}
             />
           </div>
 
           {/* Email Preview */}
           <div className="w-1/2">
-            <EmailPreview message={selectedMessage} />
+            <EmailPreview 
+              message={selectedMessage} 
+              onReply={handleReply}
+              onReplyAll={handleReplyAll} 
+              onForward={handleForward}
+            />
           </div>
         </div>
       </div>

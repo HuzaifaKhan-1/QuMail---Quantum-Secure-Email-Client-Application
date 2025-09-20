@@ -15,16 +15,33 @@ import {
   Shield,
   Download,
   Unlock,
-  CheckCircle
+  CheckCircle,
+  Trash2,
+  Archive
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import type { Message } from "@/lib/types";
 
 interface EmailPreviewProps {
   message: Message | null;
+  onReply?: (message: Message) => void;
+  onReplyAll?: (message: Message) => void;
+  onForward?: (message: Message) => void;
 }
 
-export default function EmailPreview({ message }: EmailPreviewProps) {
+export default function EmailPreview({ 
+  message, 
+  onReply, 
+  onReplyAll, 
+  onForward 
+}: EmailPreviewProps) {
   const { toast } = useToast();
 
   const decryptMutation = useMutation({
@@ -291,15 +308,29 @@ export default function EmailPreview({ message }: EmailPreviewProps) {
       <div className="border-t border-border p-4 bg-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Button size="sm" data-testid="button-reply">
+            <Button 
+              size="sm" 
+              onClick={() => onReply?.(message)}
+              data-testid="button-reply"
+            >
               <Reply className="h-4 w-4 mr-2" />
               Reply
             </Button>
-            <Button size="sm" variant="outline" data-testid="button-reply-all">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => onReplyAll?.(message)}
+              data-testid="button-reply-all"
+            >
               <ReplyAll className="h-4 w-4 mr-2" />
               Reply All
             </Button>
-            <Button size="sm" variant="outline" data-testid="button-forward">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => onForward?.(message)}
+              data-testid="button-forward"
+            >
               <Forward className="h-4 w-4 mr-2" />
               Forward
             </Button>
@@ -311,6 +342,29 @@ export default function EmailPreview({ message }: EmailPreviewProps) {
               <option value="level3">Level 3 - PQC Hybrid</option>
               <option value="level4">Level 4 - Plain Text</option>
             </select>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" data-testid="button-more-actions">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archive
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Mark as Secure
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

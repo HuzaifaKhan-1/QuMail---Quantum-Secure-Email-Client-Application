@@ -13,12 +13,14 @@ interface EmailListProps {
   folder?: string;
   selectedMessageId?: string;
   onSelectMessage: (message: Message) => void;
+  searchQuery?: string;
 }
 
 export default function EmailList({ 
   folder = "inbox", 
   selectedMessageId, 
-  onSelectMessage 
+  onSelectMessage,
+  searchQuery = "" 
 }: EmailListProps) {
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ["/api/emails", folder],
@@ -108,9 +110,18 @@ export default function EmailList({
     }
   };
 
+  // Filter messages based on search query
+  const filteredMessages = searchQuery 
+    ? messages.filter(message => 
+        message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (message.body && message.body.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : messages;
+
   return (
     <div className="h-full overflow-y-auto">
-      {messages.map((message) => {
+      {filteredMessages.map((message) => {
         const fromName = getFromName(message.from);
         const encryptionStatus = getEncryptionStatus(message);
         const isSelected = selectedMessageId === message.id;
