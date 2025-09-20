@@ -279,26 +279,36 @@ export default function Login() {
         }}></div>
       </div>
 
-      {/* Animated quantum text */}
-      <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-10">
-        <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 animate-pulse">
-          QUANTUM
+      <div className="w-full max-w-6xl relative z-10 flex items-center justify-center">
+        {/* Left side - "Qu" with dynamic quantum particle effect */}
+        <div className="flex-1 flex justify-end pr-12">
+          <div className="relative">
+            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 animate-pulse">
+              Qu
+            </div>
+            {/* Dynamic quantum orb effect around "Qu" */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-32 h-32 relative">
+                <div className="absolute inset-0 rounded-full border-2 border-blue-400/30 animate-spin" style={{ animation: 'spin 3s linear infinite' }}></div>
+                <div className="absolute inset-2 rounded-full border border-purple-400/40 animate-spin" style={{ animation: 'spin 2s linear infinite reverse' }}></div>
+                <div className="absolute inset-4 rounded-full border border-cyan-400/20 animate-pulse"></div>
+                {/* Floating quantum particles */}
+                <div className="absolute top-2 left-4 w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.5s' }}></div>
+                <div className="absolute bottom-3 right-2 w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }}></div>
+                <div className="absolute top-6 right-6 w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '1.8s' }}></div>
+                <div className="absolute bottom-6 left-3 w-1 h-1 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '2.2s' }}></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="text-center text-sm text-blue-300/70 mt-2 tracking-widest">
-          SECURE • ENCRYPTED • PROTECTED
-        </div>
-      </div>
 
-      <div className="w-full max-w-md relative z-10">
+        {/* Center - Login Form */}
+        <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/50 animate-pulse">
               <Shield className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">QuMail</h1>
-              <p className="text-sm text-blue-300">Quantum Secure Email</p>
             </div>
           </div>
           <p className="text-sm text-blue-200/80">
@@ -435,6 +445,19 @@ export default function Login() {
             </div>
           </CardContent>
         </Card>
+        </div>
+
+        {/* Right side - "Mail" */}
+        <div className="flex-1 flex justify-start pl-12">
+          <div className="relative">
+            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400">
+              Mail
+            </div>
+            <div className="text-center text-sm text-blue-300/70 mt-2 tracking-widest">
+              SECURE • ENCRYPTED • PROTECTED
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
