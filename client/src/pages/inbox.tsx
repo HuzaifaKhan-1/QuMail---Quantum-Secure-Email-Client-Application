@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { api } from "@/lib/api";
@@ -34,17 +34,18 @@ export default function Inbox() {
   const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/emails", currentFolder],
     queryFn: () => api.getEmails(currentFolder),
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-    onSuccess: (newMessages) => {
-      // Update selected message if it exists in the new data
-      if (selectedMessage && newMessages) {
-        const updatedMessage = newMessages.find(msg => msg.id === selectedMessage.id);
-        if (updatedMessage) {
-          setSelectedMessage(updatedMessage);
-        }
+    refetchInterval: 30000 // Auto-refresh every 30 seconds
+  });
+
+  // Update selected message when messages data changes
+  React.useEffect(() => {
+    if (selectedMessage && messages) {
+      const updatedMessage = messages.find(msg => msg.id === selectedMessage.id);
+      if (updatedMessage && updatedMessage.isDecrypted !== selectedMessage.isDecrypted) {
+        setSelectedMessage(updatedMessage);
       }
     }
-  });
+  }, [messages, selectedMessage]);
 
   const { data: userInfo } = useQuery({
     queryKey: ["/api/auth/me"],

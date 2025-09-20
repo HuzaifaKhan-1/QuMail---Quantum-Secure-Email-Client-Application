@@ -30,23 +30,12 @@ export default function EmailPreview({ message }: EmailPreviewProps) {
   const decryptMutation = useMutation({
     mutationFn: (messageId: string) => api.decryptEmail(messageId),
     onSuccess: async (data, messageId) => {
-      // Force refresh of both the email list and the specific message
+      // First invalidate all email queries
       await queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/emails"] });
       
-      // Update the current message in the query cache directly
-      if (message) {
-        queryClient.setQueryData(["/api/emails"], (oldData: any) => {
-          if (Array.isArray(oldData)) {
-            return oldData.map((msg: any) => 
-              msg.id === messageId 
-                ? { ...msg, isDecrypted: true, body: data.decryptedContent || data.body }
-                : msg
-            );
-          }
-          return oldData;
-        });
-      }
+      // Force refetch of current folder emails
+      const currentFolder = window.location.pathname === "/sent" ? "sent" : "inbox";
+      await queryClient.refetchQueries({ queryKey: ["/api/emails", currentFolder] });
       
       toast({
         title: "Email decrypted",

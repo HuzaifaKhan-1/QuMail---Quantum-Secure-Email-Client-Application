@@ -315,13 +315,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/emails/:messageId/decrypt", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
-      const success = await emailService.decryptEmail(messageId, req.session.userId);
+      const result = await emailService.decryptEmail(messageId, req.session.userId);
       
-      if (!success) {
+      if (!result || (typeof result === 'object' && !result.success)) {
         return res.status(400).json({ message: "Failed to decrypt email" });
       }
 
-      res.json({ message: "Email decrypted successfully" });
+      res.json({ 
+        message: "Email decrypted successfully",
+        success: true
+      });
     } catch (error) {
       console.error("Decrypt email error:", error);
       res.status(500).json({ message: "Failed to decrypt email" });
