@@ -26,21 +26,22 @@ import type { QuantumKey, KeyPoolStats } from "@/lib/types";
 export default function KeyDashboard() {
   const { toast } = useToast();
 
-  const { data: keyPoolStats, isLoading: statsLoading } = useQuery({
+  const { data: keyPoolStats, isLoading: statsLoading, isFetching: statsFetching } = useQuery({
     queryKey: ["/api/keys/pool"],
     queryFn: () => api.getKeyPool(),
-    refetchInterval: 15000 // Refresh every 15 seconds
+    refetchInterval: 2000 // Refresh every 2 seconds for live updates
   });
 
-  const { data: keys, isLoading: keysLoading } = useQuery({
+  const { data: keys, isLoading: keysLoading, isFetching: keysFetching } = useQuery({
     queryKey: ["/api/keys"],
     queryFn: () => api.getKeys(),
-    refetchInterval: 30000 // Refresh every 30 seconds
+    refetchInterval: 3000 // Refresh every 3 seconds for live updates
   });
 
-  const { data: userInfo } = useQuery({
+  const { data: userInfo, isFetching: userFetching } = useQuery({
     queryKey: ["/api/auth/me"],
-    queryFn: () => api.getMe()
+    queryFn: () => api.getMe(),
+    refetchInterval: 5000 // Refresh every 5 seconds
   });
 
   const requestKeyMutation = useMutation({
@@ -127,6 +128,13 @@ export default function KeyDashboard() {
             </div>
             
             <div className="flex items-center space-x-3">
+              {(statsFetching || keysFetching || userFetching) && (
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                  <span>Live updating...</span>
+                </div>
+              )}
+              
               <Button
                 onClick={() => handleRequestKey(8192)}
                 disabled={requestKeyMutation.isPending}
@@ -144,6 +152,7 @@ export default function KeyDashboard() {
                   queryClient.invalidateQueries({ queryKey: ["/api/keys/pool"] });
                 }}
                 data-testid="button-refresh"
+                className={statsFetching || keysFetching ? "animate-spin" : ""}
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -167,11 +176,14 @@ export default function KeyDashboard() {
                 ))
               ) : keyPoolStats ? (
                 <>
-                  <Card>
+                  <Card className={statsFetching ? "ring-2 ring-primary/20 transition-all duration-300" : ""}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Total Capacity</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground">Total Capacity</p>
+                            {statsFetching && <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>}
+                          </div>
                           <p className="text-2xl font-bold text-foreground" data-testid="text-total-capacity">
                             {keyPoolStats.totalCapacityMB} MB
                           </p>
@@ -184,11 +196,14 @@ export default function KeyDashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className={statsFetching ? "ring-2 ring-green-200 transition-all duration-300" : ""}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Available</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground">Available</p>
+                            {statsFetching && <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></div>}
+                          </div>
                           <p className="text-2xl font-bold text-foreground" data-testid="text-available">
                             {keyPoolStats.remainingMB} MB
                           </p>
@@ -201,11 +216,14 @@ export default function KeyDashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className={statsFetching ? "ring-2 ring-blue-200 transition-all duration-300" : ""}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Consumed</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground">Consumed</p>
+                            {statsFetching && <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>}
+                          </div>
                           <p className="text-2xl font-bold text-foreground" data-testid="text-consumed">
                             {keyPoolStats.consumedMB} MB
                           </p>
@@ -213,16 +231,19 @@ export default function KeyDashboard() {
                             {keyPoolStats.utilizationPercent.toFixed(1)}% used
                           </p>
                         </div>
-                        <Activity className="h-8 w-8 text-blue-600" />
+                        <Activity className={`h-8 w-8 text-blue-600 ${statsFetching ? 'animate-pulse' : ''}`} />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className={statsFetching ? `ring-2 ${poolHealth.status === 'Critical' ? 'ring-red-200' : 'ring-green-200'} transition-all duration-300` : ""}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Pool Health</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-muted-foreground">Pool Health</p>
+                            {statsFetching && <div className={`w-1 h-1 rounded-full animate-pulse ${poolHealth.status === 'Critical' ? 'bg-red-500' : 'bg-green-500'}`}></div>}
+                          </div>
                           <p className={`text-2xl font-bold ${poolHealth.color}`} data-testid="text-pool-health">
                             {poolHealth.status}
                           </p>
@@ -230,7 +251,7 @@ export default function KeyDashboard() {
                             Security status
                           </p>
                         </div>
-                        <poolHealth.icon className={`h-8 w-8 ${poolHealth.color}`} />
+                        <poolHealth.icon className={`h-8 w-8 ${poolHealth.color} ${statsFetching ? 'animate-pulse' : ''}`} />
                       </div>
                     </CardContent>
                   </Card>
@@ -285,12 +306,13 @@ export default function KeyDashboard() {
             )}
 
             {/* Individual Keys */}
-            <Card>
+            <Card className={keysFetching ? "ring-2 ring-primary/20 transition-all duration-300" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Shield className="h-5 w-5" />
                     <span>Quantum Keys</span>
+                    {keysFetching && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
                   </div>
                   {keys && (
                     <Badge variant="secondary" data-testid="badge-key-count">

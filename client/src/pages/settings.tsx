@@ -35,15 +35,16 @@ export default function Settings() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [auditLogging, setAuditLogging] = useState(true);
 
-  const { data: userInfo } = useQuery({
+  const { data: userInfo, isFetching: userFetching } = useQuery({
     queryKey: ["/api/auth/me"],
-    queryFn: () => api.getMe()
+    queryFn: () => api.getMe(),
+    refetchInterval: 5000 // Refresh every 5 seconds for live updates
   });
 
-  const { data: auditLogs, isLoading: auditLoading } = useQuery({
+  const { data: auditLogs, isLoading: auditLoading, isFetching: auditFetching } = useQuery({
     queryKey: ["/api/audit"],
     queryFn: () => api.getAuditLogs(10),
-    refetchInterval: 30000
+    refetchInterval: 2000 // Refresh every 2 seconds for live activity updates
   });
 
   const updateSettingsMutation = useMutation({
@@ -121,25 +122,35 @@ export default function Settings() {
               </p>
             </div>
             
-            <Button
-              onClick={handleSaveSettings}
-              disabled={updateSettingsMutation.isPending}
-              data-testid="button-save"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
+            <div className="flex items-center space-x-3">
+              {(userFetching || auditFetching) && (
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                  <span>Live updating...</span>
+                </div>
+              )}
+              
+              <Button
+                onClick={handleSaveSettings}
+                disabled={updateSettingsMutation.isPending}
+                data-testid="button-save"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </div>
         </header>
 
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto space-y-6">
             {/* User Profile */}
-            <Card>
+            <Card className={userFetching ? "ring-2 ring-primary/20 transition-all duration-300" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <User className="h-5 w-5" />
                   <span>User Profile</span>
+                  {userFetching && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -166,7 +177,10 @@ export default function Settings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Email Provider</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>Email Provider</Label>
+                    {userFetching && <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>}
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Badge className={providerInfo.color}>
                       {providerInfo.icon} {providerInfo.name}
@@ -174,7 +188,7 @@ export default function Settings() {
                     <span className="text-sm text-muted-foreground">
                       Connected and authenticated
                     </span>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <CheckCircle className={`h-4 w-4 text-green-600 ${userFetching ? 'animate-pulse' : ''}`} />
                   </div>
                 </div>
               </CardContent>
@@ -306,18 +320,20 @@ export default function Settings() {
             </Card>
 
             {/* Security Audit */}
-            <Card>
+            <Card className={auditFetching ? "ring-2 ring-primary/20 transition-all duration-300" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Key className="h-5 w-5" />
                     <span>Recent Security Activity</span>
+                    {auditFetching && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
                   </div>
                   <Button
                     variant="ghost" 
                     size="sm"
                     onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/audit"] })}
                     data-testid="button-refresh-audit"
+                    className={auditFetching ? "animate-spin" : ""}
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -338,13 +354,13 @@ export default function Settings() {
                   </div>
                 ) : auditLogs && auditLogs.length > 0 ? (
                   <div className="space-y-3">
-                    {auditLogs.slice(0, 8).map((log) => (
+                    {auditLogs.slice(0, 8).map((log, index) => (
                       <div 
                         key={log.id} 
-                        className="flex items-start space-x-3 p-3 rounded-lg border border-border"
+                        className={`flex items-start space-x-3 p-3 rounded-lg border border-border transition-all duration-500 ${auditFetching && index === 0 ? 'ring-2 ring-primary/30 bg-primary/5' : 'hover:bg-muted/50'}`}
                         data-testid={`audit-log-${log.id}`}
                       >
-                        <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                        <div className={`w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0 ${auditFetching && index === 0 ? 'animate-pulse' : ''}`}></div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-medium text-foreground capitalize">
