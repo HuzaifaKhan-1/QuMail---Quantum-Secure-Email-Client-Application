@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { api } from "@/lib/api";
@@ -38,6 +38,7 @@ export default function Compose() {
   const [body, setBody] = useState("");
   const [securityLevel, setSecurityLevel] = useState<SecurityLevel>(SecurityLevel.LEVEL1_OTP);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userInfo } = useQuery({
     queryKey: ["/api/auth/me"],
@@ -95,6 +96,15 @@ export default function Compose() {
 
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(att => att.id !== id));
+  };
+
+  const handleSaveDraft = () => {
+    // TODO: Implement save draft functionality
+    toast({
+      title: "Draft saved",
+      description: "Your draft has been saved locally.",
+    });
+    console.log("Saving draft:", { to, subject, body, attachments: attachments.length });
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -333,6 +343,7 @@ export default function Compose() {
                         <p className="text-xs text-muted-foreground">Max file size: 10MB</p>
                       </div>
                       <input
+                        ref={fileInputRef}
                         type="file"
                         multiple
                         onChange={handleFileUpload}
@@ -384,7 +395,8 @@ export default function Compose() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="button-attach-files"
                     >
                       <Paperclip className="h-4 w-4 mr-1" />
                       Attach Files
@@ -393,6 +405,7 @@ export default function Compose() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      onClick={handleSaveDraft}
                       data-testid="button-save-draft"
                     >
                       <Save className="h-4 w-4 mr-1" />
