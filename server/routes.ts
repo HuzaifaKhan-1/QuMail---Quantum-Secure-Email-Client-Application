@@ -331,6 +331,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/emails/:messageId/delete-content", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const message = await storage.getMessage(messageId);
+      
+      if (!message || message.userId !== (req.session.userId as string)) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      if (message.securityLevel === SecurityLevel.LEVEL1_OTP) {
+        await storage.updateMessage(messageId, {
+          body: null,
+          encryptedBody: null
+        });
+        
+        await storage.createAuditLog({
+          userId: req.session.userId as string,
+          action: "email_content_purged",
+          details: { messageId }
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete content error:", error);
+      res.status(500).json({ message: "Failed to delete content" });
+    }
+  });
+
   app.get("/api/emails/:messageId/attachments/:attachmentIndex", requireAuth, async (req, res) => {
     try {
       const { messageId, attachmentIndex } = req.params;

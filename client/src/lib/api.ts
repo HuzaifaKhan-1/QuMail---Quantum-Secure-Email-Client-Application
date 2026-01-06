@@ -55,6 +55,11 @@ export const api = {
     return response.json();
   },
 
+  async deleteEmailContent(messageId: string): Promise<any> {
+    const response = await apiRequest("POST", `/api/emails/${messageId}/delete-content`);
+    return response.json();
+  },
+
   async downloadAttachment(messageId: string, attachmentIndex: number): Promise<{ blob: Blob; filename: string; contentType: string }> {
     const response = await fetch(`/api/emails/${messageId}/attachments/${attachmentIndex}`);
 
