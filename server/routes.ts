@@ -317,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId } = req.params;
       const result = await emailService.decryptEmail(messageId, req.session.userId as string);
       
-      if (!result || (typeof result === 'object' && !result.success)) {
+      if (!result || !result.success) {
         return res.status(400).json({ message: "Failed to decrypt email" });
       }
 
@@ -365,12 +365,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId, attachmentIndex } = req.params;
       const message = await storage.getMessage(messageId);
       
-      if (!message || message.userId !== req.session.userId) {
+      if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
       const index = parseInt(attachmentIndex);
-      const attachment = message.attachments?.[index];
+      const attachments = (message.attachments || []) as any[];
+      const attachment = attachments[index];
       
       if (!attachment) {
         return res.status(404).json({ message: "Attachment not found" });

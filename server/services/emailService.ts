@@ -148,7 +148,7 @@ export class EmailService {
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send email:", error);
       throw new Error(`Failed to send email: ${error.message}`);
     }
@@ -159,7 +159,7 @@ export class EmailService {
       // Fetch emails from internal database
       const messages = await storage.getMessagesByUser(user.id, folder, limit);
       return messages;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch emails:", error);
       throw new Error(`Failed to fetch emails: ${error.message}`);
     }
@@ -167,23 +167,23 @@ export class EmailService {
 
 
 
-  async decryptEmail(messageId: string, userId: string): Promise<boolean> {
+  async decryptEmail(messageId: string, userId: string): Promise<any> {
     try {
       const message = await storage.getMessage(messageId);
 
       if (!message || message.userId !== userId) {
         console.error(`Message not found or unauthorized: messageId=${messageId}, userId=${userId}`);
-        return false;
+        return { success: false };
       }
 
       if (!message.isEncrypted || message.isDecrypted) {
         console.log(`Message already decrypted or not encrypted: messageId=${messageId}`);
-        return true; // Already decrypted or not encrypted
+        return { success: true, decryptedContent: message.body }; 
       }
 
       if (!message.encryptedBody) {
         console.error(`No encrypted body found for message: messageId=${messageId}`);
-        return false;
+        return { success: false };
       }
 
       const metadata = message.metadata as Record<string, any>;
@@ -217,9 +217,9 @@ export class EmailService {
         success: false
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to decrypt email:", error);
-      return false;
+      return { success: false, error: error.message };
     }
   }
 }
