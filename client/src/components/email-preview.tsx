@@ -170,7 +170,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onReply?.(message)}
-            disabled={isContentDeleted}
+            disabled={message.securityLevel === "level1"}
             data-testid="button-reply"
           >
             <Reply className="h-4 w-4 mr-1" />
@@ -180,7 +180,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onReplyAll?.(message)}
-            disabled={isContentDeleted}
+            disabled={message.securityLevel === "level1"}
             data-testid="button-reply-all"
           >
             <ReplyAll className="h-4 w-4 mr-1" />
@@ -190,7 +190,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onForward?.(message)}
-            disabled={isContentDeleted}
+            disabled={message.securityLevel === "level1"}
             data-testid="button-forward"
           >
             <Forward className="h-4 w-4 mr-1" />
