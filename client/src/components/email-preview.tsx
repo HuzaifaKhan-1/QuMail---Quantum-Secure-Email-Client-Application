@@ -88,6 +88,38 @@ export default function EmailPreview({
     }
   };
 
+  // Move hooks to the top, before any return statements
+  const isContentDeleted = message ? (message.securityLevel === "level1" && message.isDecrypted && !message.body) : false;
+
+  // Cleanup Level 1 content when unmounting or switching
+  React.useEffect(() => {
+    if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
+      return () => {
+        api.deleteEmailContent(message.id).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+        });
+      };
+    }
+  }, [message?.id, message?.isDecrypted, message?.body]);
+
+  // Handle page refresh/unload
+  React.useEffect(() => {
+    if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
+      const handleUnload = () => {
+        // Use sendBeacon for reliable delivery during unload
+        const url = `/api/emails/${message.id}/delete-content`;
+        navigator.sendBeacon(url);
+      };
+
+      window.addEventListener('beforeunload', handleUnload);
+      window.addEventListener('blur', handleUnload); // Also cleanup when changing tabs/apps for extra security
+      return () => {
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('blur', handleUnload);
+      };
+    }
+  }, [message?.id, message?.isDecrypted, message?.body]);
+
   if (!message) {
     return (
       <div className="h-full flex flex-col">
@@ -100,38 +132,6 @@ export default function EmailPreview({
       </div>
     );
   }
-
-  // Check if message content was deleted (Level 1 view once)
-  const isContentDeleted = message.securityLevel === "level1" && message.isDecrypted && !message.body;
-
-  // Cleanup Level 1 content when unmounting or switching
-  React.useEffect(() => {
-    return () => {
-      if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
-        api.deleteEmailContent(message.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
-        });
-      }
-    };
-  }, [message?.id, message?.isDecrypted, message?.body]);
-
-  // Handle page refresh/unload
-  React.useEffect(() => {
-    const handleUnload = () => {
-      if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
-        // Use sendBeacon for reliable delivery during unload
-        const url = `/api/emails/${message.id}/delete-content`;
-        navigator.sendBeacon(url);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    window.addEventListener('blur', handleUnload); // Also cleanup when changing tabs/apps for extra security
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      window.removeEventListener('blur', handleUnload);
-    };
-  }, [message?.id, message?.isDecrypted, message?.body]);
 
   return (
     <div className="h-full flex flex-col">
