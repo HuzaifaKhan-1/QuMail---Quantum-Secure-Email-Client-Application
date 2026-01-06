@@ -1,0 +1,186 @@
+I want to implement MongoDB database connectivity using MongoDB Atlas / MongoDB Compass, following strict security rules for each email security level.
+
+🎯 GOAL
+
+Set up a secure MongoDB connection and level-wise database design so that:
+
+Only allowed data is stored
+
+Sensitive secrets are never stored
+
+Each security level behaves differently
+
+The database is safe even if breached
+
+1️⃣ MongoDB Connection Requirements
+
+Use MongoDB (Atlas compatible with MongoDB Compass).
+
+Use mongoose.
+
+Connection string must be loaded from .env:
+
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/qumail
+
+
+Create a reusable connection file (db.ts or database.ts).
+
+Log successful connection.
+
+Gracefully handle connection errors.
+
+2️⃣ COMMON DATA (FOR ALL EMAILS)
+
+These fields must be stored for every email, regardless of security level:
+
+email_id
+sender_id
+receiver_id
+subject
+timestamp
+security_level
+status (sent | read | expired)
+
+
+✅ These fields are non-sensitive
+❌ Do NOT store plaintext message here
+
+3️⃣ LEVEL-WISE DATABASE RULES (CRITICAL)
+🟢 Level 1 – Quantum OTP (Highest Security)
+✅ SAVE:
+email_id
+encrypted_message
+otp_key_id
+key_expiry_time
+is_read
+
+❌ NEVER SAVE:
+
+OTP key permanently
+
+Plaintext message
+
+🔐 RULES:
+
+OTP keys must be stored in a temporary collection
+
+Use TTL index to auto-delete keys after expiry
+
+Delete OTP key immediately after first read
+
+After deletion, message must be permanently undecryptable
+
+Judge explanation:
+“Even the server cannot recover the message after it’s read.”
+
+🟡 Level 2 – Quantum-Seeded AES-GCM
+✅ SAVE:
+email_id
+encrypted_message
+iv
+auth_tag
+key_id (reference only)
+
+❌ NEVER SAVE:
+
+Raw AES key
+
+Plaintext message
+
+🔐 KEY HANDLING:
+
+AES key must be:
+
+Derived per session OR
+
+Stored encrypted using a server master key OR
+
+Referenced via secure key ID
+
+🟠 Level 3 – CRYSTALS-Kyber (Post-Quantum)
+✅ SAVE:
+email_id
+encrypted_message
+kyber_ciphertext
+public_key_reference
+
+❌ NEVER SAVE:
+
+Private keys
+
+Plaintext message
+
+🔐 RULES:
+
+Private keys stay with the user
+
+Database stores only public data + encrypted payload
+
+Design must support future-proof encryption
+
+⚪ Level 4 – Plain Text
+✅ SAVE:
+email_id
+plain_message
+is_encrypted = false
+
+
+⚠️ Must be clearly marked as unencrypted
+
+4️⃣ ABSOLUTE NEVER STORE (CRITICAL 🔴)
+
+❌ Plain text of encrypted emails
+❌ Permanent OTP keys
+❌ Private encryption keys
+❌ Master encryption secrets
+❌ Decrypted message cache
+
+If DB is hacked → attackers must NOT read secure emails.
+
+5️⃣ DATABASE STRUCTURE (MongoDB)
+📁 Emails Collection
+{
+  senderId: string,
+  receiverId: string,
+  subject: string,
+  encryptedPayload: string,
+  securityLevel: number,
+  metadata: object,
+  isRead: boolean,
+  createdAt: Date
+}
+
+📁 OTP Keys Collection (TEMPORARY – Level 1)
+{
+  emailId: ObjectId,
+  otpKey: string,
+  expiresAt: Date
+}
+
+
+Use TTL index on expiresAt
+
+Auto-delete after expiry or read
+
+6️⃣ OUTPUT EXPECTED
+
+MongoDB connection file
+
+Mongoose schemas for:
+
+Emails
+
+OTP Keys (with TTL)
+
+Example Express route saving data per level
+
+Clear comments explaining:
+
+Why each field is stored
+
+Why certain data is never stored
+
+MongoDB Compass-friendly schema
+
+Focus on security correctness, clean architecture, and production-ready code.
+Do NOT add placeholders or insecure shortcuts.
