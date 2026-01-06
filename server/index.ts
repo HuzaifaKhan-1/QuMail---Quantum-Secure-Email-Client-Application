@@ -3,8 +3,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
+import { connectMongoDB } from "./mongodb";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import emailRoutes from "./email-routes";
 
 declare module 'express-session' {
   interface SessionData {
@@ -15,6 +17,9 @@ declare module 'express-session' {
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Register MongoDB email routes
+app.use(emailRoutes);
 
 // Configure PostgreSQL session store
 const PgSession = connectPgSimple(session);
@@ -69,6 +74,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Connect to MongoDB
+  await connectMongoDB();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
