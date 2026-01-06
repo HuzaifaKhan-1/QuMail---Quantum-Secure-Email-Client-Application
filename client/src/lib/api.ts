@@ -39,6 +39,11 @@ export const api = {
     return response.json();
   },
 
+  async editEmail(messageId: string, body: string): Promise<Message> {
+    const response = await apiRequest("POST", `/api/emails/${messageId}/edit`, { body });
+    return response.json();
+  },
+
   async decryptEmail(messageId: string): Promise<{ success: boolean }> {
     const response = await fetch(`/api/emails/${messageId}/decrypt`, {
       method: "POST",

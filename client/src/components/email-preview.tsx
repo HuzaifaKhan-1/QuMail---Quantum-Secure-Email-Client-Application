@@ -15,10 +15,13 @@ import {
   Unlock, 
   Download,
   Paperclip,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { Message } from "@/lib/types";
+import type { Message } from "@/shared/schema";
 
 interface EmailPreviewProps {
   message: Message | null;
@@ -34,6 +37,20 @@ export default function EmailPreview({
   onForward 
 }: EmailPreviewProps) {
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editValue, setEditValue] = React.useState("");
+
+  const editMutation = useMutation({
+    mutationFn: (body: string) => api.editEmail(message!.id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      setIsEditing(false);
+      toast({ title: "Message edited" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Edit failed", description: error.message, variant: "destructive" });
+    }
+  });
 
   const decryptMutation = useMutation({
     mutationFn: (messageId: string) => api.decryptEmail(messageId),
@@ -58,6 +75,21 @@ export default function EmailPreview({
       decryptMutation.mutate(message.id);
     }
   };
+
+  const startEditing = () => {
+    setEditValue(message?.body || "");
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+  };
+
+  const saveEdit = () => {
+    editMutation.mutate(editValue);
+  };
+
+  const canEdit = message && message.folder === "sent" && (Date.now() - new Date(message.receivedAt).getTime() < 15 * 60 * 1000);
 
   const handleDownloadAttachment = async (attachmentIndex: number) => {
     if (!message) return;
@@ -196,6 +228,18 @@ export default function EmailPreview({
             <Forward className="h-4 w-4 mr-1" />
             Forward
           </Button>
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={startEditing}
+              disabled={isEditing}
+              data-testid="button-edit"
+            >
+              <Edit2 className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
         </div>
       </div>
 
@@ -211,9 +255,33 @@ export default function EmailPreview({
                 This was a Level 1 security message. It has been deleted after the first view as per "view once" policy.
               </p>
             </div>
+          ) : isEditing ? (
+            <div className="space-y-4">
+              <textarea
+                className="w-full h-64 p-4 border rounded-md bg-background text-foreground"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                data-testid="input-edit-body"
+              />
+              <div className="flex space-x-2">
+                <Button size="sm" onClick={saveEdit} disabled={editMutation.isPending}>
+                  <Check className="h-4 w-4 mr-1" /> Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={cancelEditing}>
+                  <X className="h-4 w-4 mr-1" /> Cancel
+                </Button>
+              </div>
+            </div>
           ) : message.isDecrypted ? (
-            <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-              {message.body || "No content available"}
+            <div className="space-y-2">
+              <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
+                {message.body || "No content available"}
+              </div>
+              {message.editedAt && (
+                <p className="text-xs text-muted-foreground italic">
+                  Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
+                </p>
+              )}
             </div>
           ) : message.isEncrypted ? (
             <div className="text-center p-8 border border-dashed border-border rounded-lg">
@@ -229,8 +297,15 @@ export default function EmailPreview({
               </Button>
             </div>
           ) : (
-            <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-              {message.body || "No content available"}
+            <div className="space-y-2">
+              <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
+                {message.body || "No content available"}
+              </div>
+              {message.editedAt && (
+                <p className="text-xs text-muted-foreground italic">
+                  Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -312,6 +312,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/emails/:messageId/edit", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { body } = z.object({ body: z.string() }).parse(req.body);
+      
+      const message = await storage.getMessage(messageId);
+      if (!message || message.userId !== (req.session.userId as string)) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      if (message.folder !== "sent") {
+        return res.status(403).json({ message: "Only sent messages can be edited" });
+      }
+
+      const sentAt = new Date(message.receivedAt).getTime();
+      const now = Date.now();
+      const fifteenMinutes = 15 * 60 * 1000;
+
+      if (now - sentAt > fifteenMinutes) {
+        return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
+      }
+
+      const updated = await storage.updateMessage(messageId, { body });
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to edit message" });
+    }
+  });
+
   app.post("/api/emails/:messageId/decrypt", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;

@@ -114,7 +114,10 @@ export class DatabaseStorage implements IStorage {
   async updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined> {
     const [message] = await db
       .update(messages)
-      .set(updates)
+      .set({
+        ...updates,
+        editedAt: updates.body ? new Date() : undefined
+      })
       .where(eq(messages.id, id))
       .returning();
     return message || undefined;
