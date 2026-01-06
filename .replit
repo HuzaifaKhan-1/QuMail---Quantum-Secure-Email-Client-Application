@@ -19,6 +19,7 @@ PORT = "5000"
 
 [agent]
 integrations = ["outlook:1.0.0", "javascript_database:1.0.0"]
+expertMode = true
 
 [workflows]
 runButton = "Project"
