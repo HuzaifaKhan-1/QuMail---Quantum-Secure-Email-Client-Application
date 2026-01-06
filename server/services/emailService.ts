@@ -192,9 +192,13 @@ export class EmailService {
       const decryptionResult = await cryptoEngine.decrypt(message.encryptedBody, metadata);
 
       if (decryptionResult.verified) {
+        // For Level 1 OTP, we clear the decrypted content and encrypted content after first read
+        const isLevel1 = message.securityLevel === SecurityLevel.LEVEL1_OTP;
+        
         await storage.updateMessage(messageId, {
-          body: decryptionResult.decryptedData,
-          isDecrypted: true
+          body: isLevel1 ? null : decryptionResult.decryptedData,
+          isDecrypted: true,
+          encryptedBody: isLevel1 ? null : message.encryptedBody
         });
 
         await storage.createAuditLog({

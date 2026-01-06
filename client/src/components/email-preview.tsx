@@ -14,7 +14,8 @@ import {
   Forward, 
   Unlock, 
   Download,
-  Paperclip
+  Paperclip,
+  AlertCircle
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Message } from "@/lib/types";
@@ -100,6 +101,9 @@ export default function EmailPreview({
     );
   }
 
+  // Check if message content was deleted (Level 1 view once)
+  const isContentDeleted = message.securityLevel === "level1" && message.isDecrypted && !message.body;
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -137,6 +141,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onReply?.(message)}
+            disabled={isContentDeleted}
             data-testid="button-reply"
           >
             <Reply className="h-4 w-4 mr-1" />
@@ -146,6 +151,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onReplyAll?.(message)}
+            disabled={isContentDeleted}
             data-testid="button-reply-all"
           >
             <ReplyAll className="h-4 w-4 mr-1" />
@@ -155,6 +161,7 @@ export default function EmailPreview({
             size="sm"
             variant="outline"
             onClick={() => onForward?.(message)}
+            disabled={isContentDeleted}
             data-testid="button-forward"
           >
             <Forward className="h-4 w-4 mr-1" />
@@ -167,7 +174,15 @@ export default function EmailPreview({
       <div className="flex-1 p-6 overflow-y-auto">
         {/* Message Body */}
         <div className="prose max-w-none mb-6">
-          {message.isDecrypted ? (
+          {isContentDeleted ? (
+            <div className="text-center p-8 border border-dashed border-destructive/50 rounded-lg bg-destructive/5">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-destructive font-medium mb-2">Message Content Deleted</p>
+              <p className="text-muted-foreground text-sm">
+                This was a Level 1 security message. It has been deleted after the first view as per "view once" policy.
+              </p>
+            </div>
+          ) : message.isDecrypted ? (
             <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
               {message.body || "No content available"}
             </div>

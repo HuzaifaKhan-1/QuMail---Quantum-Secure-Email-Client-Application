@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session.userId);
+      const user = await storage.getUser(req.session.userId as string);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -244,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/emails", requireAuth, async (req, res) => {
     try {
       const folder = req.query.folder as string || "inbox";
-      const messages = await storage.getMessagesByUser(req.session.userId, folder);
+      const messages = await storage.getMessagesByUser(req.session.userId as string, folder);
       
       res.json(messages);
     } catch (error) {
@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId } = req.params;
       const message = await storage.getMessage(messageId);
       
-      if (!message || message.userId !== req.session.userId) {
+      if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const emailData = sendSchema.parse(req.body);
-      const user = await storage.getUser(req.session.userId);
+      const user = await storage.getUser(req.session.userId as string);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -315,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/emails/:messageId/decrypt", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
-      const result = await emailService.decryptEmail(messageId, req.session.userId);
+      const result = await emailService.decryptEmail(messageId, req.session.userId as string);
       
       if (!result || (typeof result === 'object' && !result.success)) {
         return res.status(400).json({ message: "Failed to decrypt email" });
@@ -475,7 +475,7 @@ startxref
 
       const settings = settingsSchema.parse(req.body);
       
-      const updatedUser = await storage.updateUser(req.session.userId, settings);
+      const updatedUser = await storage.updateUser(req.session.userId as string, settings);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
