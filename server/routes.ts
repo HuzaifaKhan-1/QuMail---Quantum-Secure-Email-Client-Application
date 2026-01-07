@@ -412,9 +412,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 
+      const sender = await storage.getUser(req.session.userId as string);
+      const senderName = sender?.username || sender?.email || "Unknown Sender";
+
       const updated = await storage.updateMessage(messageId, { 
-        body,
-        editedAt: new Date()
+        body: null,
+        isDecrypted: false,
+        editedAt: new Date(),
+        metadata: {
+          ...((message.metadata as any) || {}),
+          editNotification: `This message was edited by the sender ${senderName}`
+        }
       });
       
       // Update the receiver's copy as well
@@ -432,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = msg.encryptedBody;
-        if (msg.isEncrypted && msg.keyId) {
+        if (msg.keyId) {
           const { cryptoEngine } = await import("./services/cryptoEngine");
           const keyMaterial = await kmeSimulator.getKey(msg.keyId);
           if (keyMaterial && keyMaterial.key_material) {
@@ -443,9 +451,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update with raw database call
         await db.update(messages)
           .set({ 
-            body: msg.isDecrypted ? body : null,
+            body: null,
             encryptedBody: encryptedBody,
+            isDecrypted: false,
             editedAt: new Date(),
+            metadata: {
+              ...((msg.metadata as any) || {}),
+              editNotification: `This message was edited by the sender ${senderName}`
+            }
           })
           .where(eq(messages.id, msg.id));
           
@@ -455,13 +468,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notifyUser(msg.userId, {
           type: 'EMAIL_UPDATED',
           messageId: msg.id,
-          folder: msg.folder
+          folder: msg.folder,
+          notification: `Message edited by ${senderName}`
         });
-        console.log(`[SYNC DEBUG] WS notification sent to user ${msg.userId}`);
       }
 
       res.json(updated);
     } catch (error) {
+      console.error("Edit error:", error);
       res.status(400).json({ message: "Failed to edit message" });
     }
   });

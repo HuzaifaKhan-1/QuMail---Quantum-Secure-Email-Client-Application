@@ -309,9 +309,17 @@ export default function EmailPreview({
                 {(message.body as string) || "No content available"}
               </div>
               {message.editedAt && (
-                <p className="text-xs text-muted-foreground italic">
-                  Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
-                </p>
+                <div className="bg-muted p-2 rounded-md border border-border mt-2">
+                  <p className="text-xs text-muted-foreground italic flex items-center">
+                    <Shield className="h-3 w-3 mr-1" />
+                    {message.metadata && (message.metadata as any).editNotification 
+                      ? (message.metadata as any).editNotification
+                      : `This message was edited by the sender`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
+                  </p>
+                </div>
               )}
             </div>
           ) : message.isEncrypted ? (
@@ -333,9 +341,17 @@ export default function EmailPreview({
                 {(message.body as string) || "No content available"}
               </div>
               {message.editedAt && (
-                <p className="text-xs text-muted-foreground italic">
-                  Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
-                </p>
+                <div className="bg-muted p-2 rounded-md border border-border mt-2">
+                  <p className="text-xs text-muted-foreground italic flex items-center">
+                    <Shield className="h-3 w-3 mr-1" />
+                    {message.metadata && (message.metadata as any).editNotification 
+                      ? (message.metadata as any).editNotification
+                      : `This message was edited by the sender`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Edited {formatDistanceToNow(new Date(message.editedAt), { addSuffix: true })}
+                  </p>
+                </div>
               )}
             </div>
           )}
