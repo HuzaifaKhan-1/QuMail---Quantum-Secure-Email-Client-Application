@@ -312,11 +312,11 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
             </div>
 
             {/* Attachments */}
-            <div className="grid grid-cols-12 gap-4">
-              <Label className="col-span-1 text-sm font-medium pt-2">
+            <div className="flex flex-col space-y-2">
+              <Label className="text-sm font-medium">
                 Attachments:
               </Label>
-              <div className="col-span-11 space-y-4">
+              <div className="space-y-4">
                 <div 
                   className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => document.querySelector<HTMLInputElement>('[data-testid="modal-input-file"]')?.click()}
@@ -337,18 +337,18 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
 
                 {/* Attachment List */}
                 {attachments.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {attachments.map((attachment) => (
                       <div
                         key={attachment.id}
-                        className="flex items-center justify-between p-2 bg-muted rounded-md"
+                        className="flex items-center justify-between p-2 bg-muted rounded-md border border-border"
                       >
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
-                            <Paperclip className="h-3 w-3 text-primary" />
+                        <div className="flex items-center space-x-2 overflow-hidden">
+                          <div className="flex-shrink-0 w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+                            <Paperclip className="h-4 w-4 text-primary" />
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">{attachment.file.name}</p>
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-medium truncate max-w-[150px]">{attachment.file.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {(attachment.file.size / 1024).toFixed(1)} KB
                             </p>
@@ -357,11 +357,12 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
+                          size="icon"
+                          className="h-7 w-7"
                           onClick={() => removeAttachment(attachment.id)}
                           data-testid={`modal-button-remove-${attachment.id}`}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
