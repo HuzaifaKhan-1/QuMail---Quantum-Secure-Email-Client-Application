@@ -4,6 +4,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
 
 declare module 'express-session' {
   interface SessionData {

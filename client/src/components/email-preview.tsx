@@ -123,6 +123,17 @@ export default function EmailPreview({
   // Move hooks to the top, before any return statements
   const isContentDeleted = message ? (message.securityLevel === "level1" && message.isDecrypted && !message.body) : false;
 
+  // Notification for Level 1 Security
+  React.useEffect(() => {
+    if (message && message.securityLevel === "level1" && !message.isDecrypted) {
+      toast({
+        title: "Security Alert",
+        description: "This is a Level 1 security message. Due to high security, it will be visible only once.",
+        variant: "default",
+      });
+    }
+  }, [message?.id]);
+
   // Cleanup Level 1 content when unmounting or switching
   React.useEffect(() => {
     if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
