@@ -8,3 +8,4 @@
 [x] 8. Fixed cross-env package dependency
 [x] 9. Made MongoDB connection optional (falls back to PostgreSQL)
 [x] 10. Reinstalled cross-env and verified application is running
+[x] 11. Implement Level 1 "View Once" security logic (backend & frontend)
