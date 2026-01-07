@@ -394,14 +394,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        console.log(`Updating receiver message ${msg.id}: decrypted=${msg.isDecrypted}`);
+        console.log(`Force updating receiver message ${msg.id}: decrypted=${msg.isDecrypted}`);
 
-        await storage.updateMessage(msg.id, { 
-          body: msg.isDecrypted ? body : null,
-          encryptedBody: encryptedBody,
-          editedAt: new Date(),
-          isDecrypted: msg.isDecrypted
-        });
+        // Update with raw database call to ensure no side effects from storage.updateMessage override
+        // We set body to the decrypted body if they already decrypted it, or null if they haven't
+        await db.update(messages)
+          .set({ 
+            body: msg.isDecrypted ? body : null,
+            encryptedBody: encryptedBody,
+            editedAt: new Date(),
+          })
+          .where(eq(messages.id, msg.id));
       }
 
       res.json(updated);

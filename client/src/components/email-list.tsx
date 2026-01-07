@@ -25,7 +25,7 @@ export default function EmailList({
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ["/api/emails", folder],
     queryFn: () => api.getEmails(folder),
-    refetchInterval: 30000 // Refresh every 30 seconds
+    refetchInterval: 3000 // Refresh every 3 seconds
   });
 
   if (isLoading) {

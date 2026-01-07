@@ -48,10 +48,10 @@ export default function Inbox() {
       if (updatedMessage) {
         const hasContentChanged = updatedMessage.body !== selectedMessage.body || 
                                  updatedMessage.encryptedBody !== selectedMessage.encryptedBody;
-        const hasStateChanged = updatedMessage.isDecrypted !== selectedMessage.isDecrypted ||
-                               updatedMessage.editedAt !== selectedMessage.editedAt;
+        const hasTimeChanged = updatedMessage.editedAt !== selectedMessage.editedAt;
+        const hasStateChanged = updatedMessage.isDecrypted !== selectedMessage.isDecrypted;
         
-        if (hasContentChanged || hasStateChanged) {
+        if (hasContentChanged || hasTimeChanged || hasStateChanged) {
           setSelectedMessage({ ...updatedMessage });
         }
       }
