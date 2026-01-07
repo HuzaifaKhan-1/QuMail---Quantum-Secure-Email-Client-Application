@@ -450,6 +450,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(messages.id, msg.id));
           
+        console.log(`Successfully updated receiver message ${msg.id} via sync`);
+
         // Notify receiver via WebSocket for instant update
         notifyUser(msg.userId, {
           type: 'EMAIL_UPDATED',

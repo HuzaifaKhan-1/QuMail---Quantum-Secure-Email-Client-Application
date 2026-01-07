@@ -72,10 +72,12 @@ export class EmailService {
         throw new Error(`Recipient ${options.to} not found on QuMail platform`);
       }
 
+      const commonMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
       // Store message in sender's sent folder (always decrypted for sender)
       await storage.createMessage({
         userId: user.id,
-        messageId: `sent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        messageId: commonMessageId,
         from: user.email,
         to: options.to,
         subject: options.subject,
@@ -100,7 +102,7 @@ export class EmailService {
       if (recipient.id !== user.id) {
         await storage.createMessage({
           userId: recipient.id,
-          messageId: `inbox-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          messageId: commonMessageId,
           from: user.email,
           to: options.to,
           subject: options.subject,
