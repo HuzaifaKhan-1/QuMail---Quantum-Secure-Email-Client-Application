@@ -142,6 +142,21 @@ export default function EmailPreview({
     }
   }, [message?.id, message?.securityLevel, message?.isDecrypted, message?.body]);
 
+  // Enforce frontend content destruction if already viewed
+  if (message?.securityLevel === "level1" && message.isViewed && !message.isDecrypted) {
+    return (
+      <div className="h-full flex flex-col p-6">
+        <div className="text-center p-8 border border-dashed border-destructive/50 rounded-lg bg-destructive/5">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <p className="text-destructive font-medium mb-2">Message Content Destroyed</p>
+          <p className="text-muted-foreground text-sm">
+            This was a Level 1 security message. It has already been read and the content has been self-destroyed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const canEdit = (() => {
     if (message && message.receivedAt) {
       const receivedDate = new Date(message.receivedAt);

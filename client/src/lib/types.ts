@@ -33,6 +33,8 @@ export interface Message {
   }>;
   receivedAt: string;
   folder: string;
+  isViewed: boolean;
+  editedAt?: string;
 }
 
 export interface EmailAttachment {
