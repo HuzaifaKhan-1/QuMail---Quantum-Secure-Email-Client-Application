@@ -274,7 +274,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Mark as viewed if it's Level 1
       if (message.securityLevel === SecurityLevel.LEVEL1_OTP && !message.isViewed) {
-        await storage.updateMessage(messageId, { isViewed: true });
+        await storage.updateMessage(messageId, { 
+          isViewed: true,
+          body: null,
+          encryptedBody: null 
+        });
         
         // Log the view once access
         await storage.createAuditLog({
