@@ -35,6 +35,11 @@ export interface Message {
   folder: string;
   isViewed: boolean;
   editedAt?: string;
+  metadata?: {
+    editNotification?: string;
+    lastEditedBy?: string;
+    [key: string]: any;
+  };
 }
 
 export interface EmailAttachment {

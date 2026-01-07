@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Edit2,
   Check,
-  X
+  X,
+  Shield
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Message } from "@/lib/types";
@@ -312,8 +313,8 @@ export default function EmailPreview({
                 <div className="bg-muted p-2 rounded-md border border-border mt-2">
                   <p className="text-xs text-muted-foreground italic flex items-center">
                     <Shield className="h-3 w-3 mr-1" />
-                    {message.metadata && (message.metadata as any).editNotification 
-                      ? (message.metadata as any).editNotification
+                    {message.metadata?.editNotification 
+                      ? message.metadata.editNotification
                       : `This message was edited by the sender`}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
@@ -344,8 +345,8 @@ export default function EmailPreview({
                 <div className="bg-muted p-2 rounded-md border border-border mt-2">
                   <p className="text-xs text-muted-foreground italic flex items-center">
                     <Shield className="h-3 w-3 mr-1" />
-                    {message.metadata && (message.metadata as any).editNotification 
-                      ? (message.metadata as any).editNotification
+                    {message.metadata?.editNotification 
+                      ? message.metadata.editNotification
                       : `This message was edited by the sender`}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
