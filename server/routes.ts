@@ -7,7 +7,7 @@ import { kmeSimulator } from "./services/kmeSimulator";
 import { emailService } from "./services/emailService";
 import { SecurityLevel, insertUserSchema, insertAuditLogSchema, messages } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, not } from "drizzle-orm";
 
 // WebSocket management
 const clients = new Map<string, WebSocket>();
@@ -417,17 +417,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         editedAt: new Date()
       });
       
-      // Update the receiver's copy as well
-      const receiverMessages = await db.select().from(messages).where(
+      // Sync the change to the recipient's copy if this is the sender editing
+      const otherMessages = await db.select().from(messages).where(
         and(
           eq(messages.messageId, message.messageId),
-          eq(messages.folder, "inbox")
+          not(eq(messages.id, messageId))
         )
       );
 
-      console.log(`Found ${receiverMessages.length} receiver messages for sync`);
+      console.log(`Syncing edit for messageId ${message.messageId}. Found ${otherMessages.length} other copies.`);
 
-      for (const msg of receiverMessages) {
+      for (const msg of otherMessages) {
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = msg.encryptedBody;
         if (msg.isEncrypted && msg.keyId) {
@@ -438,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        console.log(`Force updating receiver message ${msg.id}: decrypted=${msg.isDecrypted}`);
+        console.log(`Force updating message copy ${msg.id} for user ${msg.userId}: currently decrypted=${msg.isDecrypted}`);
 
         // Update with raw database call to ensure no side effects from storage.updateMessage override
         // We set body to the decrypted body if they already decrypted it, or null if they haven't
@@ -450,9 +450,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(messages.id, msg.id));
           
-        console.log(`Successfully updated receiver message ${msg.id} via sync`);
+        console.log(`Successfully updated message copy ${msg.id} via sync`);
 
-        // Notify receiver via WebSocket for instant update
+        // Notify user via WebSocket for instant update
         notifyUser(msg.userId, {
           type: 'EMAIL_UPDATED',
           messageId: msg.id,

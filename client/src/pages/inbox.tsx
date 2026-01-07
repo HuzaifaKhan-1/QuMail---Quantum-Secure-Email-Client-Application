@@ -77,11 +77,18 @@ export default function Inbox() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('WS message received:', data);
         if (data.type === 'EMAIL_UPDATED') {
+          console.log('Email updated notification for:', data.messageId);
           queryClient.invalidateQueries({ queryKey: ["/api/emails", data.folder] });
+          queryClient.invalidateQueries({ queryKey: ["/api/emails", "inbox"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/emails", "sent"] });
+          
           if (selectedMessage && selectedMessage.id === data.messageId) {
+             console.log('Refetching selected message content');
              // Force refetch the specific email if it's selected
              api.getEmail(data.messageId).then(updated => {
+               console.log('Updated message content received');
                setSelectedMessage({ ...updated }); // Force state update
              });
           }
