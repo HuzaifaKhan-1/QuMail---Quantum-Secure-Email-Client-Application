@@ -44,7 +44,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/inbox">
         <ProtectedRoute component={Inbox} />
@@ -64,35 +63,27 @@ function Router() {
       <Route path="/sent">
         <ProtectedRoute component={Inbox} />
       </Route>
+      <Route path="/">
+        <RedirectToLogin />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
-  const [location, setLocation] = useLocation();
-
+function RedirectToLogin() {
+  const [, setLocation] = useLocation();
   useEffect(() => {
-    // Redirect to login if on root path
-    if (location === "/") {
-      setLocation("/login");
-    }
-  }, [location, setLocation]);
+    setLocation("/login");
+  }, [setLocation]);
+  return null;
+}
 
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background">
-        <Switch>
-          <Route path="/login" component={Login} />
-          <Route path="/inbox" component={Inbox} />
-          <Route path="/compose" component={Compose} />
-          <Route path="/keys" component={KeyDashboard} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/audit" component={Audit} />
-          <Route path="/sent" component={Inbox} />
-          <Route path="/" component={Login} />
-          <Route component={NotFound} />
-        </Switch>
+        <Router />
         <Toaster />
       </div>
     </QueryClientProvider>
