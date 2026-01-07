@@ -381,6 +381,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
       );
 
+      console.log(`Found ${receiverMessages.length} receiver messages for sync`);
+
       for (const msg of receiverMessages) {
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = msg.encryptedBody;
@@ -392,11 +394,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        console.log(`Updating receiver message ${msg.id}: decrypted=${msg.isDecrypted}`);
+
         await storage.updateMessage(msg.id, { 
           body: msg.isDecrypted ? body : null,
           encryptedBody: encryptedBody,
           editedAt: new Date(),
-          isDecrypted: msg.isDecrypted // Keep current decryption state
+          isDecrypted: msg.isDecrypted
         });
       }
 
