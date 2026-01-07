@@ -21,7 +21,7 @@ import {
   X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { Message } from "@shared/schema";
+import type { Message } from "@/lib/types";
 
 interface EmailPreviewProps {
   message: Message | null;
@@ -89,38 +89,6 @@ export default function EmailPreview({
     editMutation.mutate(editValue);
   };
 
-  const canEdit = message && message.folder === "sent" && (Date.now() - new Date(message.receivedAt).getTime() < 15 * 60 * 1000);
-
-  const handleDownloadAttachment = async (attachmentIndex: number) => {
-    if (!message) return;
-
-    try {
-      const { blob, filename, contentType } = await api.downloadAttachment(message.id, attachmentIndex);
-
-      // Create a proper blob with the correct MIME type
-      const properBlob = new Blob([blob], { type: contentType });
-      const url = URL.createObjectURL(properBlob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Clean up the URL
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-
-      console.log(`Downloaded: ${filename} (${contentType})`);
-    } catch (error) {
-      console.error('Download failed:', error);
-      // Handle error (show toast, etc.)
-    }
-  };
-
-  // Move hooks to the top, before any return statements
   const isContentDeleted = message ? (message.securityLevel === "level1" && message.isDecrypted && !message.body) : false;
 
   // Notification for Level 1 Security
@@ -128,7 +96,7 @@ export default function EmailPreview({
     if (message && message.securityLevel === "level1" && !message.isDecrypted) {
       toast({
         title: "Security Alert",
-        description: "This is a Level 1 security message. Due to high security, it will be visible only once.",
+        description: "This is a Level 1 security message. Due to high security, it will be visible only once. Refreshing or switching away will delete the content.",
         variant: "default",
       });
     }
@@ -137,10 +105,24 @@ export default function EmailPreview({
   // Cleanup Level 1 content when unmounting or switching
   React.useEffect(() => {
     if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
-      return () => {
+      const cleanup = () => {
         api.deleteEmailContent(message.id).then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
         });
+      };
+
+      // Tab visibility change
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          cleanup();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        cleanup();
       };
     }
   }, [message?.id, message?.isDecrypted, message?.body]);
@@ -149,19 +131,43 @@ export default function EmailPreview({
   React.useEffect(() => {
     if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
       const handleUnload = () => {
-        // Use sendBeacon for reliable delivery during unload
-        const url = `/api/emails/${message.id}/delete-content`;
+        const url = \`/api/emails/\${message.id}/delete-content\`;
         navigator.sendBeacon(url);
       };
 
       window.addEventListener('beforeunload', handleUnload);
-      window.addEventListener('blur', handleUnload); // Also cleanup when changing tabs/apps for extra security
       return () => {
         window.removeEventListener('beforeunload', handleUnload);
-        window.removeEventListener('blur', handleUnload);
       };
     }
   }, [message?.id, message?.isDecrypted, message?.body]);
+
+  const canEdit = (() => {
+    if (message && message.receivedAt) {
+      return message.folder === "sent" && (Date.now() - new Date(message.receivedAt).getTime() < 15 * 60 * 1000);
+    }
+    return false;
+  })();
+
+  const handleDownloadAttachment = async (attachmentIndex: number) => {
+    if (!message) return;
+
+    try {
+      const { blob, filename, contentType } = await api.downloadAttachment(message.id, attachmentIndex);
+      const properBlob = new Blob([blob], { type: contentType });
+      const url = URL.createObjectURL(properBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
 
   if (!message) {
     return (
@@ -178,7 +184,6 @@ export default function EmailPreview({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
       <div className="flex-shrink-0 border-b border-border p-6 bg-card">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
@@ -188,11 +193,11 @@ export default function EmailPreview({
             <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <span>From: <span className="font-medium text-foreground">{message.from}</span></span>
               <span>To: <span className="font-medium text-foreground">{message.to}</span></span>
-              <span>{formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true })}</span>
+              <span>{message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <SecurityBadge level={message.securityLevel} size="sm" />
+            <SecurityBadge level={message.securityLevel as any} size="sm" />
             {message.isEncrypted && !message.isDecrypted && (
               <Button
                 size="sm"
@@ -207,7 +212,6 @@ export default function EmailPreview({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center space-x-2">
           <Button
             size="sm"
@@ -254,9 +258,7 @@ export default function EmailPreview({
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 p-6 overflow-y-auto">
-        {/* Message Body */}
         <div className="prose max-w-none mb-6">
           {isContentDeleted ? (
             <div className="text-center p-8 border border-dashed border-destructive/50 rounded-lg bg-destructive/5">
@@ -286,7 +288,7 @@ export default function EmailPreview({
           ) : message.isDecrypted ? (
             <div className="space-y-2">
               <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-                {message.body || "No content available"}
+                {(message.body as string) || "No content available"}
               </div>
               {message.editedAt && (
                 <p className="text-xs text-muted-foreground italic">
@@ -310,7 +312,7 @@ export default function EmailPreview({
           ) : (
             <div className="space-y-2">
               <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-                {message.body || "No content available"}
+                {(message.body as string) || "No content available"}
               </div>
               {message.editedAt && (
                 <p className="text-xs text-muted-foreground italic">
@@ -321,15 +323,14 @@ export default function EmailPreview({
           )}
         </div>
 
-        {/* Attachments */}
-        {message.attachments && message.attachments.length > 0 && (
+        {Array.isArray(message.attachments) && (message.attachments as any[]).length > 0 && (
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <h4 className="text-sm font-medium text-foreground mb-3 flex items-center">
               <Paperclip className="h-4 w-4 mr-2" />
-              Attachments ({message.attachments.length})
+              Attachments ({(message.attachments as any[]).length})
             </h4>
             <div className="space-y-2">
-              {message.attachments.map((attachment: any, index: number) => (
+              {(message.attachments as any[]).map((attachment: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-card border border-border rounded-md">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
@@ -346,7 +347,7 @@ export default function EmailPreview({
                     size="sm" 
                     variant="outline" 
                     onClick={() => handleDownloadAttachment(index)}
-                    data-testid={`button-download-${index}`}
+                    data-testid={\`button-download-\${index}\`}
                   >
                     <Download className="h-3 w-3 mr-1" />
                     Download
