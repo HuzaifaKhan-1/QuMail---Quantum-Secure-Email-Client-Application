@@ -4,7 +4,9 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { kmeSimulator } from "./services/kmeSimulator";
 import { emailService } from "./services/emailService";
-import { SecurityLevel, insertUserSchema, insertAuditLogSchema } from "@shared/schema";
+import { SecurityLevel, insertUserSchema, insertAuditLogSchema, messages } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication middleware
@@ -328,13 +330,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const sentAt = new Date(message.receivedAt).getTime();
       const now = Date.now();
-      const fifteenMinutes = 15 * 60 * 1000;
+      const editWindow = 15 * 60 * 1000; // 15 minutes window
 
-      if (now - sentAt > fifteenMinutes) {
+      if (now - sentAt > editWindow) {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 
-      const updated = await storage.updateMessage(messageId, { body });
+      const updated = await storage.updateMessage(messageId, { 
+        body,
+        editedAt: new Date()
+      });
+      
+      // Update the receiver's copy as well
+      const receiverMessages = await db.select().from(messages).where(
+        and(
+          eq(messages.messageId, message.messageId),
+          eq(messages.folder, "inbox")
+        )
+      );
+
+      for (const msg of receiverMessages) {
+        await storage.updateMessage(msg.id, { 
+          body,
+          editedAt: new Date()
+        });
+      }
+
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to edit message" });
