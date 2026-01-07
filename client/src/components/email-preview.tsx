@@ -21,7 +21,7 @@ import {
   X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { Message } from "@/shared/schema";
+import type { Message } from "@shared/schema";
 
 interface EmailPreviewProps {
   message: Message | null;
@@ -329,7 +329,7 @@ export default function EmailPreview({
               Attachments ({message.attachments.length})
             </h4>
             <div className="space-y-2">
-              {message.attachments.map((attachment, index) => (
+              {message.attachments.map((attachment: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-card border border-border rounded-md">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">

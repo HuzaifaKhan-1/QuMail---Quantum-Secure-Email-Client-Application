@@ -328,6 +328,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only sent messages can be edited" });
       }
 
+      if (!message.receivedAt) {
+        return res.status(500).json({ message: "Invalid message date" });
+      }
+
       const sentAt = new Date(message.receivedAt).getTime();
       const now = Date.now();
       const editWindow = 15 * 60 * 1000; // 15 minutes window
