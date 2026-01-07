@@ -64,7 +64,6 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
     { path: "/sent", icon: Send, label: "Sent" },
     { path: "/compose", icon: Send, label: "Compose" },
     { path: "/keys", icon: Key, label: "Key Dashboard" },
-    { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
   const getSecurityStatus = () => {
@@ -140,42 +139,58 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.path;
+      <nav className="flex-1 p-4 flex flex-col space-y-2">
+        <div className="flex-1 space-y-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.path;
 
-          return (
-            <Button
-              key={item.path}
-              variant={isActive ? "default" : "ghost"}
-              className={`w-full justify-start ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLocation(item.path);
-              }}
-              data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
-            >
-              <Icon className="h-4 w-4 mr-3" />
-              <span className="text-sm font-medium">{item.label}</span>
-              {item.badge && (
-                <Badge 
-                  variant={isActive ? "secondary" : "default"} 
-                  className="ml-auto"
-                  data-testid="badge-unread-count"
-                >
-                  {item.badge}
-                </Badge>
-              )}
-            </Button>
-          );
-        })}
+            return (
+              <Button
+                key={item.path}
+                variant={isActive ? "default" : "ghost"}
+                className={`w-full justify-start ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setLocation(item.path);
+                }}
+                data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
+              >
+                <Icon className="h-4 w-4 mr-3" />
+                <span className="text-sm font-medium">{item.label}</span>
+                {item.badge && (
+                  <Badge 
+                    variant={isActive ? "secondary" : "default"} 
+                    className="ml-auto"
+                    data-testid="badge-unread-count"
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
+              </Button>
+            );
+          })}
+        </div>
 
-        <div className="pt-4">
+        <div className="pt-4 mt-auto border-t border-border">
           <Button
             variant="ghost"
-            className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
+            className={`w-full justify-start ${location === "/settings" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setLocation("/settings");
+            }}
+            data-testid="nav-settings"
+          >
+            <Settings className="h-4 w-4 mr-3" />
+            <span className="text-sm font-medium">Settings</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            className={`w-full justify-start ${location === "/audit" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -190,7 +205,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-destructive hover:text-destructive"
+            className="w-full justify-start text-destructive hover:text-destructive mt-2"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
