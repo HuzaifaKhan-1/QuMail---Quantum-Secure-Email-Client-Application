@@ -92,7 +92,8 @@ export class EmailService {
           size: a.content.length
         })) : null,
         encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
-        folder: "sent"
+        folder: "sent",
+        isViewed: false
       });
 
       // Only store in recipient's inbox if sender and recipient are different users
@@ -116,7 +117,8 @@ export class EmailService {
             size: a.content.length
           })) : null,
           encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
-          folder: "inbox"
+          folder: "inbox",
+          isViewed: false
         });
       }
 
