@@ -45,7 +45,11 @@ export default function Inbox() {
   React.useEffect(() => {
     if (selectedMessage && messages) {
       const updatedMessage = messages.find(msg => msg.id === selectedMessage.id);
-      if (updatedMessage && updatedMessage.isDecrypted !== selectedMessage.isDecrypted) {
+      if (updatedMessage && (
+        updatedMessage.isDecrypted !== selectedMessage.isDecrypted || 
+        updatedMessage.body !== selectedMessage.body ||
+        updatedMessage.editedAt !== selectedMessage.editedAt
+      )) {
         setSelectedMessage(updatedMessage);
       }
     }

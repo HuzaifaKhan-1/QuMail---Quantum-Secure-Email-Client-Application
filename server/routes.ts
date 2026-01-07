@@ -383,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const msg of receiverMessages) {
         // If the message was encrypted, we need to re-encrypt the body
-        let encryptedBody = null;
+        let encryptedBody = msg.encryptedBody;
         if (msg.isEncrypted && msg.keyId) {
           const { cryptoEngine } = await import("./services/cryptoEngine");
           const keyMaterial = await kmeSimulator.getKey(msg.keyId);
@@ -395,7 +395,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateMessage(msg.id, { 
           body: msg.isDecrypted ? body : null,
           encryptedBody: encryptedBody,
-          editedAt: new Date()
+          editedAt: new Date(),
+          isDecrypted: msg.isDecrypted // Keep current decryption state
         });
       }
 
