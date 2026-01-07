@@ -417,17 +417,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         editedAt: new Date()
       });
       
-      // Sync the change to the recipient's copy if this is the sender editing
-      const otherMessages = await db.select().from(messages).where(
+      // Update the receiver's copy as well
+      const receiverMessages = await db.select().from(messages).where(
         and(
           eq(messages.messageId, message.messageId),
-          not(eq(messages.id, messageId))
+          eq(messages.folder, "inbox")
         )
       );
 
-      console.log(`Syncing edit for messageId ${message.messageId}. Found ${otherMessages.length} other copies.`);
+      console.log(`[SYNC DEBUG] Found ${receiverMessages.length} receiver messages for sync`);
 
-      for (const msg of otherMessages) {
+      for (const msg of receiverMessages) {
+        console.log(`[SYNC DEBUG] Updating message ${msg.id} for user ${msg.userId}`);
+        
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = msg.encryptedBody;
         if (msg.isEncrypted && msg.keyId) {
@@ -438,10 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        console.log(`Force updating message copy ${msg.id} for user ${msg.userId}: currently decrypted=${msg.isDecrypted}`);
-
-        // Update with raw database call to ensure no side effects from storage.updateMessage override
-        // We set body to the decrypted body if they already decrypted it, or null if they haven't
+        // Update with raw database call
         await db.update(messages)
           .set({ 
             body: msg.isDecrypted ? body : null,
@@ -450,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(messages.id, msg.id));
           
-        console.log(`Successfully updated message copy ${msg.id} via sync`);
+        console.log(`[SYNC DEBUG] Database update complete for ${msg.id}`);
 
         // Notify user via WebSocket for instant update
         notifyUser(msg.userId, {
@@ -458,6 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messageId: msg.id,
           folder: msg.folder
         });
+        console.log(`[SYNC DEBUG] WS notification sent to user ${msg.userId}`);
       }
 
       res.json(updated);
