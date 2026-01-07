@@ -63,6 +63,37 @@ export default function Inbox() {
     queryFn: () => api.getMe()
   });
 
+  // WebSocket for instant updates
+  React.useEffect(() => {
+    if (!userInfo?.user?.id) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'auth', userId: userInfo.user.id }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'EMAIL_UPDATED') {
+          queryClient.invalidateQueries({ queryKey: ["/api/emails", data.folder] });
+          if (selectedMessage && selectedMessage.id === data.messageId) {
+             // Force refetch the specific email if it's selected
+             api.getEmail(data.messageId).then(updated => {
+               setSelectedMessage({ ...updated }); // Force state update
+             });
+          }
+        }
+      } catch (e) {
+        console.error('WS error:', e);
+      }
+    };
+
+    return () => ws.close();
+  }, [userInfo?.user?.id, selectedMessage?.id]);
+
   const fetchEmailsMutation = useMutation({
     mutationFn: () => api.fetchEmails(),
     onSuccess: () => {

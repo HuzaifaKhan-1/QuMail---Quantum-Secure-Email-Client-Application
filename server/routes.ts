@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { storage } from "./storage";
 import { kmeSimulator } from "./services/kmeSimulator";
@@ -8,7 +9,50 @@ import { SecurityLevel, insertUserSchema, insertAuditLogSchema, messages } from 
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
+// WebSocket management
+const clients = new Map<string, WebSocket>();
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  wss.on('connection', (ws, req) => {
+    // Basic session-based auth for WS
+    const cookie = req.headers.cookie;
+    if (!cookie) {
+      ws.close();
+      return;
+    }
+
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.type === 'auth' && message.userId) {
+          clients.set(message.userId, ws);
+          console.log(`WebSocket client connected: ${message.userId}`);
+        }
+      } catch (e) {
+        console.error('WS message error:', e);
+      }
+    });
+
+    ws.on('close', () => {
+      for (const [userId, client] of clients.entries()) {
+        if (client === ws) {
+          clients.delete(userId);
+          break;
+        }
+      }
+    });
+  });
+
+  const notifyUser = (userId: string, data: any) => {
+    const client = clients.get(userId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  };
+
   // Authentication middleware
   const requireAuth = (req: any, res: any, next: any) => {
     if (!req.session?.userId) {
@@ -405,6 +449,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             editedAt: new Date(),
           })
           .where(eq(messages.id, msg.id));
+          
+        // Notify receiver via WebSocket for instant update
+        notifyUser(msg.userId, {
+          type: 'EMAIL_UPDATED',
+          messageId: msg.id,
+          folder: msg.folder
+        });
       }
 
       res.json(updated);
@@ -635,6 +686,5 @@ startxref
     }
   }, 5 * 60 * 1000); // Every 5 minutes
 
-  const httpServer = createServer(app);
   return httpServer;
 }
