@@ -63,6 +63,27 @@ export class CryptoEngine {
   }
 
   /**
+   * Re-encrypt body for editing purposes
+   */
+  async encryptBody(body: string, keyMaterial: string): Promise<string> {
+    const data = Buffer.from(body, 'utf8');
+    const keyBuffer = Buffer.from(keyMaterial, 'base64');
+    
+    // XOR data with quantum key (OTP)
+    const encrypted = Buffer.alloc(data.length);
+    for (let i = 0; i < data.length; i++) {
+      encrypted[i] = data[i] ^ keyBuffer[i];
+    }
+
+    // Generate HMAC for authentication
+    const hmac = createHmac('sha256', keyBuffer.slice(data.length, data.length + 32));
+    hmac.update(encrypted);
+    const authTag = hmac.digest();
+
+    return Buffer.concat([encrypted, authTag]).toString('base64');
+  }
+
+  /**
    * Level 1: One-Time Pad encryption using quantum keys
    */
   private async encryptOTP(data: Buffer, recipient?: string): Promise<EncryptionResult> {

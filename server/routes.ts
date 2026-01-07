@@ -387,8 +387,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (msg.isEncrypted && msg.keyId) {
           const { cryptoEngine } = await import("./services/cryptoEngine");
           const keyMaterial = await kmeSimulator.getKey(msg.keyId);
-          if (keyMaterial && keyMaterial.key) {
-            encryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key);
+          if (keyMaterial && keyMaterial.key_material) {
+            encryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key_material);
           }
         }
 
