@@ -116,7 +116,7 @@ export class DatabaseStorage implements IStorage {
       .update(messages)
       .set({
         ...updates,
-        editedAt: updates.body ? new Date() : undefined
+        editedAt: (updates.body || updates.encryptedBody) ? new Date() : undefined
       })
       .where(eq(messages.id, id))
       .returning();
