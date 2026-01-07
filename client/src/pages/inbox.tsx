@@ -76,6 +76,13 @@ export default function Inbox() {
   });
 
   const handleSelectMessage = (message: Message) => {
+    // If it's a view-once message that we're navigating away from, we should clear it
+    if (selectedMessage?.securityLevel === 'level1') {
+      // Small delay to allow UI to transition if needed
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      }, 100);
+    }
     setSelectedMessage(message);
   };
 

@@ -34,6 +34,7 @@ export const messages = pgTable("messages", {
   receivedAt: timestamp("received_at").defaultNow(),
   editedAt: timestamp("edited_at"),
   folder: text("folder").default("inbox"), // inbox, sent, trash
+  isViewed: boolean("is_viewed").default(false),
 });
 
 export const quantumKeys = pgTable("quantum_keys", {

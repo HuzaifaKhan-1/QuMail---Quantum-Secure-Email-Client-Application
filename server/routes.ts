@@ -264,6 +264,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Message not found" });
       }
 
+      // Level 1 security: View once logic
+      if (message.securityLevel === SecurityLevel.LEVEL1_OTP && message.isViewed) {
+        return res.status(403).json({ 
+          message: "This message was marked as 'View Once' and has already been read. Content is destroyed.",
+          isViewedOnce: true 
+        });
+      }
+
+      // Mark as viewed if it's Level 1
+      if (message.securityLevel === SecurityLevel.LEVEL1_OTP && !message.isViewed) {
+        await storage.updateMessage(messageId, { isViewed: true });
+        
+        // Log the view once access
+        await storage.createAuditLog({
+          userId: req.session.userId as string,
+          action: "view_once_accessed",
+          details: { messageId }
+        });
+      }
+
       res.json(message);
     } catch (error) {
       console.error("Get email error:", error);
