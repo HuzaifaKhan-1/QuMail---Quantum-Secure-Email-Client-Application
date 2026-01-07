@@ -100,7 +100,7 @@ export default function EmailPreview({
         variant: "default",
       });
     }
-  }, [message?.id]);
+  }, [message?.id, message?.securityLevel, message?.isDecrypted, toast]);
 
   // Cleanup Level 1 content when unmounting or switching
   React.useEffect(() => {
@@ -125,13 +125,13 @@ export default function EmailPreview({
         cleanup();
       };
     }
-  }, [message?.id, message?.isDecrypted, message?.body]);
+  }, [message?.id, message?.securityLevel, message?.isDecrypted, message?.body]);
 
   // Handle page refresh/unload
   React.useEffect(() => {
     if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
       const handleUnload = () => {
-        const url = \`/api/emails/\${message.id}/delete-content\`;
+        const url = `/api/emails/${message.id}/delete-content`;
         navigator.sendBeacon(url);
       };
 
@@ -140,11 +140,12 @@ export default function EmailPreview({
         window.removeEventListener('beforeunload', handleUnload);
       };
     }
-  }, [message?.id, message?.isDecrypted, message?.body]);
+  }, [message?.id, message?.securityLevel, message?.isDecrypted, message?.body]);
 
   const canEdit = (() => {
     if (message && message.receivedAt) {
-      return message.folder === "sent" && (Date.now() - new Date(message.receivedAt).getTime() < 15 * 60 * 1000);
+      const receivedDate = new Date(message.receivedAt);
+      return message.folder === "sent" && (Date.now() - receivedDate.getTime() < 15 * 60 * 1000);
     }
     return false;
   })();
@@ -174,7 +175,7 @@ export default function EmailPreview({
       <div className="h-full flex flex-col">
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           <div className="text-center">
-            <div className="text-6xl mb-4">📧</div>
+            <div className="text-6xl mb-4 text-foreground">📧</div>
             <p className="text-lg">Select a message to view</p>
           </div>
         </div>
@@ -347,7 +348,7 @@ export default function EmailPreview({
                     size="sm" 
                     variant="outline" 
                     onClick={() => handleDownloadAttachment(index)}
-                    data-testid={\`button-download-\${index}\`}
+                    data-testid={`button-download-${index}`}
                   >
                     <Download className="h-3 w-3 mr-1" />
                     Download
