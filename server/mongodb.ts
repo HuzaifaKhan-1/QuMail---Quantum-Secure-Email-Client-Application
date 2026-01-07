@@ -1,12 +1,13 @@
 import mongoose from "mongoose";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("MONGODB_URI environment variable is not defined");
-}
-
 const MONGODB_URI = process.env.MONGODB_URI;
 
 export async function connectMongoDB() {
+  if (!MONGODB_URI) {
+    console.warn("MONGODB_URI not defined. Skipping MongoDB connection - emails will be stored in PostgreSQL instead.");
+    return;
+  }
+  
   try {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds instead of 30
