@@ -89,7 +89,7 @@ export default function EmailPreview({
     editMutation.mutate(editValue);
   };
 
-  const isContentDeleted = message ? (message.securityLevel === "level1" && (message.isViewed || (message.isDecrypted && !message.body))) : false;
+  const isContentDeleted = message ? (message.securityLevel === "level1" && (message.isViewed || (message.isDecrypted && !message.body && message.body !== ""))) : false;
 
   // Notification for Level 1 Security
   React.useEffect(() => {
