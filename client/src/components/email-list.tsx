@@ -122,7 +122,8 @@ export default function EmailList({
   return (
     <div className="h-full overflow-y-auto">
       {filteredMessages.map((message) => {
-        const fromName = getFromName(message.from);
+        const isSentFolder = folder === "sent";
+        const displayName = isSentFolder ? getFromName(message.to) : getFromName(message.from);
         const encryptionStatus = getEncryptionStatus(message);
         const isSelected = selectedMessageId === message.id;
         
@@ -138,14 +139,14 @@ export default function EmailList({
             <div className="flex items-start space-x-3">
               <Avatar className="w-10 h-10">
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  {getInitials(fromName)}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-foreground truncate" data-testid="text-sender">
-                    {fromName}
+                    {isSentFolder ? "To: " : ""}{displayName}
                   </p>
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <SecurityBadge level={message.securityLevel} size="sm" />

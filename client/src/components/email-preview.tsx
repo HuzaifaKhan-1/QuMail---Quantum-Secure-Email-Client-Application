@@ -211,6 +211,7 @@ export default function EmailPreview({
             <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <span>From: <span className="font-medium text-foreground">{message.from}</span></span>
               <span>To: <span className="font-medium text-foreground">{message.to}</span></span>
+              <span className="flex-1"></span>
               <span>{message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}</span>
             </div>
           </div>
