@@ -385,10 +385,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = null;
         if (msg.isEncrypted && msg.keyId) {
-          const { encryptBody } = await import("./services/cryptoEngine");
+          const { cryptoEngine } = await import("./services/cryptoEngine");
           const keyMaterial = await kmeSimulator.getKey(msg.keyId);
-          if (keyMaterial) {
-            encryptedBody = await encryptBody(body, keyMaterial.key);
+          if (keyMaterial && keyMaterial.key) {
+            encryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key);
           }
         }
 

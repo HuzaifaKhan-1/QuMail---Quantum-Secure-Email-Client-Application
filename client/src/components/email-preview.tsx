@@ -43,7 +43,9 @@ export default function EmailPreview({
   const editMutation = useMutation({
     mutationFn: (body: string) => api.editEmail(message!.id, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      // Invalidate both sent and inbox queries to ensure sync
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "sent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "inbox"] });
       setIsEditing(false);
       toast({ title: "Message edited" });
     },
