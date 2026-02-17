@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import SecurityBadge from "./security-badge";
-import { 
-  Reply, 
-  ReplyAll, 
-  Forward, 
-  Unlock, 
+import {
+  Reply,
+  ReplyAll,
+  Forward,
+  Unlock,
   Download,
   Paperclip,
   AlertCircle,
@@ -30,15 +30,33 @@ interface EmailPreviewProps {
   onForward?: (message: Message) => void;
 }
 
-export default function EmailPreview({ 
-  message, 
-  onReply, 
-  onReplyAll, 
-  onForward 
+export default function EmailPreview({
+  message,
+  onReply,
+  onReplyAll,
+  onForward
 }: EmailPreviewProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
+  const [decryptedBody, setDecryptedBody] = React.useState<string | null>(null);
+  const lastIdRef = React.useRef<string | null>(null);
+
+  const isDecryptedUI = !!decryptedBody || !!message?.body;
+  const displayBody = decryptedBody || (message?.body as string);
+  const isContentDeleted = message?.securityLevel === "level1" && message.isViewed && !displayBody;
+
+  // Set initial decrypted body if message already has a body (e.g. Level 4 or Level 1 first read)
+  // Only reset decryptedBody if the message ID actually changed
+  React.useEffect(() => {
+    if (message?.id !== lastIdRef.current) {
+      setDecryptedBody(message?.body || null);
+      lastIdRef.current = message?.id || null;
+    } else if (message?.body && message.body !== decryptedBody) {
+      // If the same message somehow got a better body (e.g. decrypted on server)
+      setDecryptedBody(message.body);
+    }
+  }, [message?.id, message?.body]);
 
   const editMutation = useMutation({
     mutationFn: (body: string) => api.editEmail(message!.id, body),
@@ -56,7 +74,9 @@ export default function EmailPreview({
 
   const decryptMutation = useMutation({
     mutationFn: (messageId: string) => api.decryptEmail(messageId),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setDecryptedBody(data.decryptedContent);
+      // Invalidate to update metadata in the list, but we keep the content in local state
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
       toast({
         title: "Message decrypted",
@@ -91,8 +111,6 @@ export default function EmailPreview({
     editMutation.mutate(editValue);
   };
 
-  const isContentDeleted = message ? (message.securityLevel === "level1" && (message.isViewed || (message.isDecrypted && !message.body && message.body !== ""))) : false;
-
   // Notification for Level 1 Security
   React.useEffect(() => {
     if (message && message.securityLevel === "level1" && !message.isDecrypted) {
@@ -104,9 +122,20 @@ export default function EmailPreview({
     }
   }, [message?.id, message?.securityLevel, message?.isDecrypted, toast]);
 
+  // Auto-decrypt for Level 2 and 3
+  React.useEffect(() => {
+    if (message &&
+      (message.securityLevel === "level2" || message.securityLevel === "level3") &&
+      !isDecryptedUI &&
+      !decryptMutation.isPending &&
+      !decryptMutation.isError) {
+      handleDecrypt();
+    }
+  }, [message?.id, message?.securityLevel, isDecryptedUI]);
+
   // Cleanup Level 1 content when unmounting or switching
   React.useEffect(() => {
-    if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
+    if (message && message.securityLevel === "level1" && isDecryptedUI && displayBody) {
       const cleanup = () => {
         api.deleteEmailContent(message.id).then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
@@ -121,17 +150,17 @@ export default function EmailPreview({
       };
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
-      
+
       return () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         cleanup();
       };
     }
-  }, [message?.id, message?.securityLevel, message?.isDecrypted, message?.body]);
+  }, [message?.id, message?.securityLevel, isDecryptedUI, displayBody]);
 
   // Handle page refresh/unload
   React.useEffect(() => {
-    if (message && message.securityLevel === "level1" && message.isDecrypted && message.body) {
+    if (message && message.securityLevel === "level1" && isDecryptedUI && displayBody) {
       const handleUnload = () => {
         const url = `/api/emails/${message.id}/delete-content`;
         navigator.sendBeacon(url);
@@ -142,10 +171,18 @@ export default function EmailPreview({
         window.removeEventListener('beforeunload', handleUnload);
       };
     }
-  }, [message?.id, message?.securityLevel, message?.isDecrypted, message?.body]);
+  }, [message?.id, message?.securityLevel, isDecryptedUI, displayBody]);
+
+  const canEdit = (() => {
+    if (message && message.receivedAt) {
+      const receivedDate = new Date(message.receivedAt);
+      return message.folder === "sent" && (Date.now() - receivedDate.getTime() < 15 * 60 * 1000);
+    }
+    return false;
+  })();
 
   // Enforce frontend content destruction if already viewed
-  if (message?.securityLevel === "level1" && message.isViewed && !message.isDecrypted) {
+  if (isContentDeleted) {
     return (
       <div className="h-full flex flex-col p-6">
         <div className="text-center p-8 border border-dashed border-destructive/50 rounded-lg bg-destructive/5">
@@ -158,14 +195,6 @@ export default function EmailPreview({
       </div>
     );
   }
-
-  const canEdit = (() => {
-    if (message && message.receivedAt) {
-      const receivedDate = new Date(message.receivedAt);
-      return message.folder === "sent" && (Date.now() - receivedDate.getTime() < 15 * 60 * 1000);
-    }
-    return false;
-  })();
 
   const handleDownloadAttachment = async (attachmentIndex: number) => {
     if (!message) return;
@@ -217,7 +246,7 @@ export default function EmailPreview({
           </div>
           <div className="flex items-center space-x-2">
             <SecurityBadge level={message.securityLevel as any} size="sm" />
-            {message.isEncrypted && !message.isDecrypted && (
+            {message.isEncrypted && !isDecryptedUI && !isContentDeleted && (
               <Button
                 size="sm"
                 onClick={handleDecrypt}
@@ -235,7 +264,7 @@ export default function EmailPreview({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onReply?.(message)}
+            onClick={() => onReply?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply"
           >
@@ -245,7 +274,7 @@ export default function EmailPreview({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onReplyAll?.(message)}
+            onClick={() => onReplyAll?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply-all"
           >
@@ -255,7 +284,7 @@ export default function EmailPreview({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onForward?.(message)}
+            onClick={() => onForward?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-forward"
           >
@@ -282,9 +311,9 @@ export default function EmailPreview({
           {isContentDeleted ? (
             <div className="text-center p-8 border border-dashed border-destructive/50 rounded-lg bg-destructive/5">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-              <p className="text-destructive font-medium mb-2">Message Content Deleted</p>
+              <p className="text-destructive font-medium mb-2 text-xl">🧨 Message Consumed – Quantum Key Destroyed</p>
               <p className="text-muted-foreground text-sm">
-                This was a Level 1 security message. It has been deleted after the first view as per "view once" policy.
+                This was a Level 1 security message. Its content and the associated quantum key have been permanently destroyed after viewing.
               </p>
             </div>
           ) : isEditing ? (
@@ -304,10 +333,16 @@ export default function EmailPreview({
                 </Button>
               </div>
             </div>
-          ) : message.isDecrypted ? (
-            <div className="space-y-2">
+          ) : isDecryptedUI ? (
+            <div className="space-y-4">
+              {message.securityLevel === "level1" && (
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-md flex items-center text-amber-800 dark:text-amber-200 text-sm">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  This message will be permanently destroyed after viewing. Closing this window or refreshing will erase it forever.
+                </div>
+              )}
               <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-                {(message.body as string) || "No content available"}
+                {displayBody || "No content available"}
               </div>
               {message.editedAt && (
                 <p className="text-xs text-muted-foreground italic">
@@ -315,23 +350,36 @@ export default function EmailPreview({
                 </p>
               )}
             </div>
-          ) : message.isEncrypted ? (
+          ) : message.isEncrypted && !isContentDeleted ? (
             <div className="text-center p-8 border border-dashed border-border rounded-lg">
               <Unlock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">This message is encrypted</p>
+              <p className="text-muted-foreground mb-4">
+                {message.securityLevel === "level1"
+                  ? "This is a Top Secret OTP-protected message."
+                  : "This message is encrypted."}
+              </p>
               <Button
                 onClick={handleDecrypt}
                 disabled={decryptMutation.isPending}
+                size="lg"
+                variant={message.securityLevel === "level1" ? "destructive" : "default"}
                 data-testid="button-decrypt-inline"
               >
                 <Unlock className="h-4 w-4 mr-2" />
-                {decryptMutation.isPending ? "Decrypting..." : "Decrypt Message"}
+                {decryptMutation.isPending
+                  ? "Decrypting..."
+                  : message.securityLevel === "level1" ? "View Once" : "Decrypt Message"}
               </Button>
+              {message.securityLevel === "level1" && (
+                <p className="mt-4 text-xs text-destructive font-medium uppercase tracking-wider">
+                  Warning: Content will be destroyed immediately after viewing
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               <div className="whitespace-pre-wrap text-foreground" data-testid="text-body">
-                {(message.body as string) || "No content available"}
+                {displayBody || "No content available"}
               </div>
               {message.editedAt && (
                 <p className="text-xs text-muted-foreground italic">
@@ -362,9 +410,9 @@ export default function EmailPreview({
                       </p>
                     </div>
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => handleDownloadAttachment(index)}
                     data-testid={`button-download-${index}`}
                   >

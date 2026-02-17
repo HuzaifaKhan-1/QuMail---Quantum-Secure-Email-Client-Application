@@ -19,12 +19,12 @@ export class CryptoEngine {
    * Encrypt data using the specified security level
    */
   async encrypt(
-    data: string | Buffer, 
+    data: string | Buffer,
     securityLevel: SecurityLevel,
     recipient?: string
   ): Promise<EncryptionResult> {
     const dataBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf8');
-    
+
     switch (securityLevel) {
       case SecurityLevel.LEVEL1_OTP:
         return this.encryptOTP(dataBuffer, recipient);
@@ -47,7 +47,7 @@ export class CryptoEngine {
     metadata: Record<string, any>
   ): Promise<DecryptionResult> {
     const securityLevel = metadata.securityLevel as SecurityLevel;
-    
+
     switch (securityLevel) {
       case SecurityLevel.LEVEL1_OTP:
         return this.decryptOTP(encryptedData, metadata);
@@ -68,7 +68,7 @@ export class CryptoEngine {
   async encryptBody(body: string, keyMaterial: string): Promise<string> {
     const data = Buffer.from(body, 'utf8');
     const keyBuffer = Buffer.from(keyMaterial, 'base64');
-    
+
     // XOR data with quantum key (OTP)
     const encrypted = Buffer.alloc(data.length);
     for (let i = 0; i < data.length; i++) {
@@ -87,16 +87,16 @@ export class CryptoEngine {
    * Level 1: One-Time Pad encryption using quantum keys
    */
   private async encryptOTP(data: Buffer, recipient?: string): Promise<EncryptionResult> {
-    // Request quantum key from KME
+    // Request quantum key from KME - include 32 bytes for HMAC
     const keyRequest = {
       request_id: randomBytes(16).toString('hex'),
-      key_length_bits: data.length * 8,
+      key_length_bits: (data.length + 32) * 8,
       recipient
     };
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
     const keyMaterial = await kmeSimulator.getKey(keyResponse.key_id);
-    
+
     if (!keyMaterial) {
       throw new Error("Failed to obtain quantum key material");
     }
@@ -106,14 +106,14 @@ export class CryptoEngine {
     }
 
     const keyBuffer = Buffer.from(keyMaterial.key_material, 'base64');
-    
+
     // XOR data with quantum key (OTP)
     const encrypted = Buffer.alloc(data.length);
     for (let i = 0; i < data.length; i++) {
       encrypted[i] = data[i] ^ keyBuffer[i];
     }
 
-    // Generate HMAC for authentication
+    // Generate HMAC for authentication using the tail of the key
     const hmac = createHmac('sha256', keyBuffer.slice(data.length, data.length + 32));
     hmac.update(encrypted);
     const authTag = hmac.digest();
@@ -153,13 +153,13 @@ export class CryptoEngine {
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
     const keyMaterial = await kmeSimulator.getKey(keyResponse.key_id);
-    
+
     if (!keyMaterial) {
       throw new Error("Failed to obtain quantum key material");
     }
 
     const seedBuffer = Buffer.from(keyMaterial.key_material, 'base64');
-    
+
     // Derive AES key using HKDF
     const aesKey = this.hkdf(seedBuffer, 32, 'QuMail-AES-Key');
     const iv = randomBytes(12); // GCM IV
@@ -198,16 +198,16 @@ export class CryptoEngine {
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
     const keyMaterial = await kmeSimulator.getKey(keyResponse.key_id);
-    
+
     if (!keyMaterial) {
       throw new Error("Failed to obtain quantum key material");
     }
 
     const seedBuffer = Buffer.from(keyMaterial.key_material, 'base64');
-    
+
     // Simulate Kyber KEM with quantum seed
     const kyberResult = this.simulateKyberKEM(seedBuffer);
-    
+
     // Use derived key for AES-GCM encryption
     const encryptedData = this.aesGCMEncrypt(data, kyberResult.sharedSecret, kyberResult.iv);
 
@@ -218,9 +218,9 @@ export class CryptoEngine {
 
     return {
       encryptedData: Buffer.concat([
-        kyberResult.iv, 
-        kyberResult.ciphertext, 
-        encryptedData.encrypted, 
+        kyberResult.iv,
+        kyberResult.ciphertext,
+        encryptedData.encrypted,
         encryptedData.authTag
       ]).toString('base64'),
       keyId: keyResponse.key_id,
@@ -251,11 +251,11 @@ export class CryptoEngine {
   private async decryptOTP(encryptedData: string, metadata: Record<string, any>): Promise<DecryptionResult> {
     const dataBuffer = Buffer.from(encryptedData, 'base64');
     const dataLength = metadata.dataLength;
-    
+
     if (!dataLength || typeof dataLength !== 'number') {
       throw new Error(`Invalid data length in metadata: ${dataLength}`);
     }
-    
+
     const encrypted = dataBuffer.slice(0, dataLength);
     const authTag = dataBuffer.slice(dataLength);
 
@@ -265,19 +265,19 @@ export class CryptoEngine {
     }
 
     const keyBuffer = Buffer.from(keyMaterial.key_material, 'base64');
-    
+
     // Verify HMAC
     const hmac = createHmac('sha256', keyBuffer.slice(dataLength, dataLength + 32));
     hmac.update(encrypted);
     const expectedTag = hmac.digest();
-    
+
     const verified = expectedTag.equals(authTag);
-    
+
     // XOR to decrypt
     if (dataLength <= 0) {
       throw new Error(`Invalid data length for decryption: ${dataLength}`);
     }
-    
+
     const decrypted = Buffer.alloc(dataLength);
     for (let i = 0; i < dataLength; i++) {
       decrypted[i] = encrypted[i] ^ keyBuffer[i];
@@ -312,29 +312,44 @@ export class CryptoEngine {
   }
 
   private async decryptPQC(encryptedData: string, metadata: Record<string, any>): Promise<DecryptionResult> {
-    const dataBuffer = Buffer.from(encryptedData, 'base64');
-    const ivLength = metadata.ivLength || 12;
-    const kemCiphertextLength = metadata.kemCiphertextLength || 1088; // Kyber-768 ciphertext length
-    
-    const iv = dataBuffer.slice(0, ivLength);
-    const kemCiphertext = dataBuffer.slice(ivLength, ivLength + kemCiphertextLength);
-    const encrypted = dataBuffer.slice(ivLength + kemCiphertextLength, -16);
-    const authTag = dataBuffer.slice(-16);
+    try {
+      const dataBuffer = Buffer.from(encryptedData, 'base64');
+      const ivLength = metadata.ivLength || 12;
+      const kemCiphertextLength = metadata.kemCiphertextLength || 1088;
 
-    const keyMaterial = await kmeSimulator.getKey(metadata.keyId);
-    if (!keyMaterial) {
-      throw new Error("Quantum key not available for decryption");
+      const iv = dataBuffer.slice(0, ivLength);
+      const kemCiphertext = dataBuffer.slice(ivLength, ivLength + kemCiphertextLength);
+      const encrypted = dataBuffer.slice(ivLength + kemCiphertextLength, -16);
+      const authTag = dataBuffer.slice(-16);
+
+      const keyId = metadata.keyId;
+      if (!keyId) {
+        throw new Error("Missing keyId in metadata for PQC decryption");
+      }
+
+      const keyMaterial = await kmeSimulator.getKey(keyId);
+      if (!keyMaterial) {
+        throw new Error("Quantum key not available for PQC decryption");
+      }
+
+      const seedBuffer = Buffer.from(keyMaterial.key_material, 'base64');
+      const kyberResult = this.simulateKyberDecapsulation(seedBuffer, kemCiphertext);
+
+      // Use the derived shared secret to decrypt the AES-GCM payload
+      const result = this.aesGCMDecrypt(encrypted, kyberResult.sharedSecret, iv, authTag);
+
+      if (!result.verified) {
+        console.error("[PQC ERROR] Authentication failed for PQC message");
+      }
+
+      return {
+        decryptedData: result.decrypted.toString('utf8'),
+        verified: result.verified
+      };
+    } catch (error: any) {
+      console.error("[PQC ERROR] Decryption process failed:", error);
+      return { decryptedData: "", verified: false };
     }
-
-    const seedBuffer = Buffer.from(keyMaterial.key_material, 'base64');
-    const kyberResult = this.simulateKyberDecapsulation(seedBuffer, kemCiphertext);
-
-    const result = this.aesGCMDecrypt(encrypted, kyberResult.sharedSecret, iv, authTag);
-
-    return {
-      decryptedData: result.decrypted.toString('utf8'),
-      verified: result.verified
-    };
   }
 
   private async decryptPlain(encryptedData: string): Promise<DecryptionResult> {
@@ -356,7 +371,7 @@ export class CryptoEngine {
     // Simplified AES-GCM simulation using XOR and HMAC
     const encrypted = Buffer.alloc(data.length);
     const keyStream = this.generateKeyStream(key, iv, data.length);
-    
+
     for (let i = 0; i < data.length; i++) {
       encrypted[i] = data[i] ^ keyStream[i];
     }
@@ -380,7 +395,7 @@ export class CryptoEngine {
     // Decrypt
     const decrypted = Buffer.alloc(encrypted.length);
     const keyStream = this.generateKeyStream(key, iv, encrypted.length);
-    
+
     for (let i = 0; i < encrypted.length; i++) {
       decrypted[i] = encrypted[i] ^ keyStream[i];
     }
@@ -391,52 +406,34 @@ export class CryptoEngine {
   private generateKeyStream(key: Buffer, iv: Buffer, length: number): Buffer {
     const stream = Buffer.alloc(length);
     let counter = 0;
-    
+
     for (let i = 0; i < length; i += 32) {
       const hash = createHash('sha256');
       hash.update(key);
       hash.update(iv);
       hash.update(Buffer.from([counter++]));
       const block = hash.digest();
-      
+
       const copyLength = Math.min(32, length - i);
       block.copy(stream, i, 0, copyLength);
     }
-    
+
     return stream;
   }
 
   private simulateKyberKEM(seed: Buffer) {
-    // Simulate CRYSTALS-Kyber-768 Key Encapsulation
-    const kyberSeed = seed.slice(0, 64);
-    
-    // Generate Kyber public/private key pair from quantum seed
-    const privateKey = this.hkdf(kyberSeed, 32, 'Kyber-PrivateKey');
-    const publicKey = this.hkdf(kyberSeed, 32, 'Kyber-PublicKey');
-    
-    // Simulate encapsulation
-    const ephemeralKey = randomBytes(32);
-    const sharedSecret = this.hkdf(Buffer.concat([privateKey, ephemeralKey]), 32, 'Kyber-SharedSecret');
-    const ciphertext = randomBytes(1088); // Kyber-768 ciphertext size
+    // Simplify to stable seed-based derivation for the simulation
+    const sharedSecret = this.hkdf(seed, 32, 'Kyber-SharedSecret');
+    const ciphertext = randomBytes(1088);
     const iv = randomBytes(12);
-    
-    // Mix quantum randomness into ciphertext
-    for (let i = 0; i < Math.min(ciphertext.length, seed.length - 64); i++) {
-      ciphertext[i] ^= seed[64 + i];
-    }
-    
+    const publicKey = this.hkdf(seed, 32, 'Kyber-PublicKey');
+
     return { sharedSecret, ciphertext, iv, publicKey };
   }
 
   private simulateKyberDecapsulation(seed: Buffer, ciphertext: Buffer) {
-    // Simulate CRYSTALS-Kyber-768 decapsulation
-    const kyberSeed = seed.slice(0, 64);
-    const privateKey = this.hkdf(kyberSeed, 32, 'Kyber-PrivateKey');
-    
-    // Extract ephemeral key from ciphertext (simulated)
-    const ephemeralKey = this.hkdf(ciphertext.slice(0, 32), 32, 'Kyber-Ephemeral');
-    const sharedSecret = this.hkdf(Buffer.concat([privateKey, ephemeralKey]), 32, 'Kyber-SharedSecret');
-    
+    // Match the stable seed-based derivation
+    const sharedSecret = this.hkdf(seed, 32, 'Kyber-SharedSecret');
     return { sharedSecret };
   }
 }

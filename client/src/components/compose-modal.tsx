@@ -12,11 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import SecurityBadge from "./security-badge";
-import { 
-  Send, 
-  Shield, 
-  Paperclip, 
-  Save, 
+import {
+  Send,
+  Shield,
+  Paperclip,
+  Save,
   X,
   Upload,
   AlertCircle
@@ -49,21 +49,21 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
   React.useEffect(() => {
     if (replyData?.type && replyData?.message) {
       const { type, message } = replyData;
-      
+
       switch (type) {
         case 'reply':
           setTo(message.from);
           setSubject(message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`);
           setBody(`\n\n--- Original Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\n\n${message.body}`);
           break;
-          
+
         case 'reply-all':
           // For reply-all, we'd need to include CC recipients if they exist
           setTo(message.from);
           setSubject(message.subject.startsWith('Re: ') ? message.subject : `Re: ${message.subject}`);
           setBody(`\n\n--- Original Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\n\n${message.body}`);
           break;
-          
+
         case 'forward':
           setTo("");
           setSubject(message.subject.startsWith('Fwd: ') ? message.subject : `Fwd: ${message.subject}`);
@@ -127,7 +127,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
         id: `${Date.now()}-${i}`
       });
     }
-    
+
     setAttachments(prev => [...prev, ...newAttachments]);
   };
 
@@ -137,7 +137,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!to || !subject || !body) {
       toast({
         title: "Missing fields",
@@ -175,25 +175,25 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
     switch (level) {
       case SecurityLevel.LEVEL1_OTP:
         return {
-          name: "Level 1 - Quantum OTP",
+          name: "Level 1 - Quantum OTP (Top Secret)",
           description: "One-Time Pad encryption using quantum keys (Highest Security)",
           warning: keyPoolStats && keyPoolStats.remainingMB < 10 ? "Low key pool - may fallback to Level 2" : null
         };
       case SecurityLevel.LEVEL2_AES:
         return {
-          name: "Level 2 - Quantum-seeded AES-GCM",
+          name: "🔐 Quantum Secured (AES-256-GCM)",
           description: "AES-256-GCM with quantum-derived keys",
           warning: null
         };
       case SecurityLevel.LEVEL3_PQC:
         return {
-          name: "Level 3 - CRYSTALS-Kyber PQC",
+          name: "🛡 Post-Quantum Protected (CRYSTALS-Kyber)",
           description: "Post-Quantum Cryptography with CRYSTALS-Kyber KEM",
           warning: null
         };
       case SecurityLevel.LEVEL4_PLAIN:
         return {
-          name: "Level 4 - Plain Text",
+          name: "Standard Email (No Encryption)",
           description: "No encryption (not recommended)",
           warning: "This option provides no security protection"
         };
@@ -210,9 +210,9 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
             <Shield className="h-5 w-5" />
             <span>
               {replyData?.type === 'reply' ? 'Reply to Message' :
-               replyData?.type === 'reply-all' ? 'Reply All to Message' :
-               replyData?.type === 'forward' ? 'Forward Message' :
-               'Compose Secure Email'}
+                replyData?.type === 'reply-all' ? 'Reply All to Message' :
+                  replyData?.type === 'forward' ? 'Forward Message' :
+                    'Compose Secure Email'}
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -259,25 +259,25 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 Security:
               </Label>
               <div className="col-span-11 space-y-2">
-                <Select 
-                  value={securityLevel} 
+                <Select
+                  value={securityLevel}
                   onValueChange={(value: SecurityLevel) => setSecurityLevel(value)}
                 >
                   <SelectTrigger data-testid="modal-select-security">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Quantum OTP (Highest Security)</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL2_AES}>Level 2 - Quantum-seeded AES-GCM</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - CRYSTALS-Kyber PQC</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Level 4 - Plain Text</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Quantum OTP (Top Secret)</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL2_AES}>🔐 Quantum Secured (AES-256-GCM)</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL3_PQC}>🛡 Post-Quantum Protected (CRYSTALS-Kyber)</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Standard Email (Level 4)</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <div className="text-xs text-muted-foreground">
                   {securityInfo.description}
                 </div>
-                
+
                 {securityInfo.warning && (
                   <div className="flex items-center space-x-2 p-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md">
                     <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -317,7 +317,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 Attachments:
               </Label>
               <div className="space-y-4">
-                <div 
+                <div
                   className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => document.querySelector<HTMLInputElement>('[data-testid="modal-input-file"]')?.click()}
                 >
@@ -386,7 +386,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
               </Button>
               <Button
                 type="button"
-                variant="ghost" 
+                variant="ghost"
                 size="sm"
                 data-testid="modal-button-save-draft"
               >
@@ -394,7 +394,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 Save Draft
               </Button>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <SecurityBadge level={securityLevel} size="sm" />
               <Button

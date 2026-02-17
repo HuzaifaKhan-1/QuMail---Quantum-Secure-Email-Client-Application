@@ -12,12 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Search, 
-  Plus, 
-  RefreshCw, 
+import {
+  Search,
+  Plus,
+  RefreshCw,
   AlertCircle,
-  CheckCircle 
+  CheckCircle
 } from "lucide-react";
 import type { Message } from "@/lib/types";
 
@@ -46,11 +46,11 @@ export default function Inbox() {
     if (selectedMessage && messages) {
       const updatedMessage = messages.find(msg => msg.id === selectedMessage.id);
       if (updatedMessage) {
-        const hasContentChanged = updatedMessage.body !== selectedMessage.body || 
-                                 updatedMessage.encryptedBody !== selectedMessage.encryptedBody;
+        const hasContentChanged = updatedMessage.body !== selectedMessage.body ||
+          updatedMessage.encryptedBody !== selectedMessage.encryptedBody;
         const hasTimeChanged = updatedMessage.editedAt !== selectedMessage.editedAt;
         const hasStateChanged = updatedMessage.isDecrypted !== selectedMessage.isDecrypted;
-        
+
         if (hasContentChanged || hasTimeChanged || hasStateChanged) {
           setSelectedMessage({ ...updatedMessage });
         }
@@ -83,14 +83,14 @@ export default function Inbox() {
           queryClient.invalidateQueries({ queryKey: ["/api/emails", data.folder] });
           queryClient.invalidateQueries({ queryKey: ["/api/emails", "inbox"] });
           queryClient.invalidateQueries({ queryKey: ["/api/emails", "sent"] });
-          
+
           if (selectedMessage && selectedMessage.id === data.messageId) {
-             console.log('Refetching selected message content');
-             // Force refetch the specific email if it's selected
-             api.getEmail(data.messageId).then(updated => {
-               console.log('Updated message content received');
-               setSelectedMessage({ ...updated }); // Force state update
-             });
+            console.log('Refetching selected message content');
+            // Force refetch the specific email if it's selected
+            api.getEmail(data.messageId).then(updated => {
+              console.log('Updated message content received');
+              setSelectedMessage({ ...updated }); // Force state update
+            });
           }
         }
       } catch (e) {
@@ -120,7 +120,7 @@ export default function Inbox() {
     }
   });
 
-  const handleSelectMessage = (message: Message) => {
+  const handleSelectMessage = async (message: Message) => {
     // If it's a view-once message that we're navigating away from, we should clear it
     if (selectedMessage?.securityLevel === 'level1') {
       // Small delay to allow UI to transition if needed
@@ -129,6 +129,15 @@ export default function Inbox() {
       }, 100);
     }
     setSelectedMessage(message);
+
+    try {
+      // Fetch full message details to trigger view-once logic or get metadata
+      const fullMessage = await api.getEmail(message.id);
+      setSelectedMessage(fullMessage);
+    } catch (error) {
+      console.error("Failed to fetch message details:", error);
+      // Keep the list version if fetch fails
+    }
   };
 
   const handleRefresh = () => {
@@ -255,10 +264,10 @@ export default function Inbox() {
 
           {/* Email Preview */}
           <div className="w-1/2">
-            <EmailPreview 
-              message={selectedMessage} 
+            <EmailPreview
+              message={selectedMessage}
               onReply={handleReply}
-              onReplyAll={handleReplyAll} 
+              onReplyAll={handleReplyAll}
               onForward={handleForward}
             />
           </div>
@@ -267,7 +276,7 @@ export default function Inbox() {
 
       {/* Compose Modal */}
       <ComposeModal
-        isOpen={isComposeOpen} 
+        isOpen={isComposeOpen}
         onClose={() => {
           setIsComposeOpen(false);
           setReplyData({ type: null, message: null });

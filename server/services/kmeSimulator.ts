@@ -44,6 +44,7 @@ interface QuantumKeyMaterial {
   key_length_bits: number;
   expiry_time: number; // Unix timestamp in seconds
   consumed_bytes: number;
+  isActive?: boolean;
 }
 
 
@@ -51,7 +52,7 @@ class KMESimulator {
   private keyPool: Map<string, QuantumKeyMaterial> = new Map();
   private keyStore: Map<string, QuantumKeyEntry> = new Map();
   private keyPoolStats = {
-    totalKeys: 0,
+    availableKeys: 0,
     totalMB: 0,
     remainingMB: 0,
     utilizationPercent: 0
@@ -132,24 +133,30 @@ class KMESimulator {
       }
 
       const quantumKeyMaterial = this.generateQuantumKey(keyLengthBits);
-
       const keyId = `qkey-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
-
-      // Calculate expiry time in seconds for storage
-      const expiryTimeSeconds = Math.floor((Date.now() + this.KEY_EXPIRY_MS) / 1000);
+      const expiryDate = new Date(Date.now() + this.KEY_EXPIRY_MS);
 
       const storedKey: QuantumKeyEntry = {
         keyId,
-        keyMaterial: quantumKeyMaterial, // Ensure this is the base64 encoded key
+        keyMaterial: quantumKeyMaterial,
         keyLength: keyLengthBytes,
-        expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
+        expiryTime: expiryDate,
         consumedBytes: 0,
         maxConsumptionBytes: keyLengthBytes,
         isActive: true,
         createdAt: new Date()
       };
 
+      // Add to all memory caches immediately
       this.keyStore.set(keyId, storedKey);
+      this.keyPool.set(keyId, {
+        key_id: keyId,
+        key_material: quantumKeyMaterial,
+        key_length_bits: keyLengthBits,
+        expiry_time: Math.floor(expiryDate.getTime() / 1000),
+        consumed_bytes: 0
+      });
+
       console.log(`Stored key ${keyId} with material length: ${quantumKeyMaterial.length}`);
 
       // Persist the key to storage
@@ -157,11 +164,10 @@ class KMESimulator {
         keyId,
         keyMaterial: quantumKeyMaterial,
         keyLength: keyLengthBytes,
-        expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
+        expiryTime: expiryDate,
         consumedBytes: 0,
         maxConsumptionBytes: keyLengthBytes,
-        isActive: true,
-        createdAt: new Date()
+        isActive: true
       });
 
       // Log the key request
@@ -185,12 +191,28 @@ class KMESimulator {
   }
 
   async getKey(keyId: string): Promise<QuantumKeyMaterial | null> {
+    // 1. Check current pool
     let key = this.keyPool.get(keyId);
 
-    // If key not in memory, try to load from storage
+    // 2. Check key store if not in pool
+    if (!key) {
+      const entry = this.keyStore.get(keyId);
+      if (entry) {
+        key = {
+          key_id: entry.keyId,
+          key_material: entry.keyMaterial,
+          key_length_bits: entry.keyLength * 8,
+          expiry_time: Math.floor(entry.expiryTime.getTime() / 1000),
+          consumed_bytes: entry.consumedBytes || 0
+        };
+        this.keyPool.set(keyId, key);
+      }
+    }
+
+    // 3. Fallback to storage
     if (!key) {
       try {
-        const storage = (await import('../storage')).storage;
+        const { storage } = await import('../storage');
         const storedKey = await storage.getQuantumKey(keyId);
 
         if (storedKey && storedKey.keyMaterial) {
@@ -202,7 +224,6 @@ class KMESimulator {
             consumed_bytes: storedKey.consumedBytes || 0
           };
 
-          // Add back to memory pool
           this.keyPool.set(keyId, key);
           console.log(`Loaded key from storage: ${keyId}`);
         }
@@ -221,6 +242,7 @@ class KMESimulator {
     if (key.expiry_time < now) {
       console.error(`Key expired: ${keyId}`);
       this.keyPool.delete(keyId);
+      this.keyStore.delete(keyId);
       await this.deleteKeyFromStorage(keyId);
       return null;
     }
@@ -338,7 +360,7 @@ class KMESimulator {
     };
 
     this.keyStore.set(keyId, storedKey);
-    
+
     await storage.createQuantumKey({
       keyId,
       keyMaterial: quantumKeyMaterial,
@@ -346,9 +368,15 @@ class KMESimulator {
       expiryTime: new Date(Date.now() + this.KEY_EXPIRY_MS),
       consumedBytes: 0,
       maxConsumptionBytes: keyLengthBytes,
-      isActive: true,
-      createdAt: new Date()
+      isActive: true
     });
+  }
+
+  async destroyKey(keyId: string): Promise<void> {
+    this.keyPool.delete(keyId);
+    this.keyStore.delete(keyId);
+    await this.deleteKeyFromStorage(keyId);
+    console.log(`Key ${keyId} destroyed successfully`);
   }
 
   private async deleteKeyFromStorage(keyId: string): Promise<void> {

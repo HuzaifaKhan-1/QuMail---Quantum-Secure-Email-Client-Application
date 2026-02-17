@@ -1,3 +1,4 @@
+// node dist/index.js - to run
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
@@ -26,7 +27,7 @@ app.use(session({
     tableName: 'sessions',
     createTableIfMissing: true
   }),
-  secret: process.env.SESSION_SECRET || "quantum-mail-secret-key-super-secure-2024", 
+  secret: process.env.SESSION_SECRET || "quantum-mail-secret-key-super-secure-2024",
   resave: false,
   saveUninitialized: false,
   name: "qumail.sid", // Custom session name
@@ -54,11 +55,26 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        // Redact sensitive content from logs
+        const redactedResponse = { ...capturedJsonResponse };
+        if (redactedResponse.body) redactedResponse.body = "[REDACTED]";
+        if (redactedResponse.encryptedBody) redactedResponse.encryptedBody = "[REDACTED]";
+        if (redactedResponse.decryptedContent) redactedResponse.decryptedContent = "[REDACTED]";
+        if (Array.isArray(redactedResponse)) {
+          // If it's a list of messages, redact each one
+          const redactedList = redactedResponse.map((m: any) => ({
+            ...m,
+            body: m.body ? "[REDACTED]" : null,
+            encryptedBody: m.encryptedBody ? "[REDACTED]" : null
+          }));
+          logLine += ` :: ${JSON.stringify(redactedList)}`;
+        } else {
+          logLine += ` :: ${JSON.stringify(redactedResponse)}`;
+        }
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (logLine.length > 150) {
+        logLine = logLine.slice(0, 149) + "…";
       }
 
       log(logLine);
@@ -88,8 +104,8 @@ app.use((req, res, next) => {
 
   // Serve the app on the port specified in the environment variable PORT
   const port = parseInt(process.env.PORT || '5000', 10);
-server.listen(port, () => {
-  log(`serving on http://127.0.0.1:${port}`);
-});
+  server.listen(port, () => {
+    log(`serving on http://127.0.0.1:${port}`);
+  });
 
 })();

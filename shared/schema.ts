@@ -35,7 +35,9 @@ export const messages = pgTable("messages", {
   editedAt: timestamp("edited_at"),
   folder: text("folder").default("inbox"), // inbox, sent, trash
   isViewed: boolean("is_viewed").default(false),
-});
+}, (table) => ({
+  securityCheck: sql`CHECK (security_level = 'level4' OR body IS NULL)`
+}));
 
 export const quantumKeys = pgTable("quantum_keys", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -40,6 +40,9 @@ export interface IStorage {
   createQuantumKey(key: InsertQuantumKey): Promise<QuantumKey>;
   updateQuantumKey(keyId: string, updates: Partial<QuantumKey>): Promise<QuantumKey | undefined>;
   consumeKey(keyId: string, bytes: number): Promise<boolean>;
+  deleteQuantumKey(keyId: string): Promise<void>;
+  deactivateQuantumKey(keyId: string): Promise<void>;
+  updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean>;
 
   // Audit log methods
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -116,7 +119,7 @@ export class DatabaseStorage implements IStorage {
       .update(messages)
       .set({
         ...updates,
-        editedAt: (updates.body || updates.encryptedBody) ? new Date() : undefined
+        editedAt: (updates.body !== undefined || updates.encryptedBody !== undefined) ? new Date() : undefined
       })
       .where(eq(messages.id, id))
       .returning();
@@ -172,6 +175,16 @@ export class DatabaseStorage implements IStorage {
     });
 
     return true;
+  }
+
+  async deleteQuantumKey(keyId: string): Promise<void> {
+    await db.delete(quantumKeys).where(eq(quantumKeys.keyId, keyId));
+  }
+
+  async deactivateQuantumKey(keyId: string): Promise<void> {
+    await db.update(quantumKeys)
+      .set({ isActive: false })
+      .where(eq(quantumKeys.keyId, keyId));
   }
 
   async updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean> {

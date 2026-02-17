@@ -16,11 +16,11 @@ interface EmailListProps {
   searchQuery?: string;
 }
 
-export default function EmailList({ 
-  folder = "inbox", 
-  selectedMessageId, 
+export default function EmailList({
+  folder = "inbox",
+  selectedMessageId,
   onSelectMessage,
-  searchQuery = "" 
+  searchQuery = ""
 }: EmailListProps) {
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ["/api/emails", folder],
@@ -94,7 +94,23 @@ export default function EmailList({
 
   const getEncryptionStatus = (message: Message) => {
     if (!message.isEncrypted) return null;
-    
+
+    if (message.securityLevel === "level1") {
+      if (message.isViewed) {
+        return {
+          icon: AlertCircle,
+          text: "🧨 Consumed",
+          color: "text-red-600"
+        };
+      } else {
+        return {
+          icon: Lock,
+          text: "🔐 Quantum OTP Protected",
+          color: "text-amber-600"
+        };
+      }
+    }
+
     if (message.isDecrypted) {
       return {
         icon: CheckCircle,
@@ -104,19 +120,19 @@ export default function EmailList({
     } else {
       return {
         icon: Lock,
-        text: "Awaiting decryption", 
+        text: "Encrypted",
         color: "text-amber-600"
       };
     }
   };
 
   // Filter messages based on search query
-  const filteredMessages = searchQuery 
-    ? messages.filter(message => 
-        message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (message.body && message.body.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
+  const filteredMessages = searchQuery
+    ? messages.filter(message =>
+      message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (message.body && message.body.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
     : messages;
 
   return (
@@ -126,13 +142,12 @@ export default function EmailList({
         const displayName = isSentFolder ? getFromName(message.to) : getFromName(message.from);
         const encryptionStatus = getEncryptionStatus(message);
         const isSelected = selectedMessageId === message.id;
-        
+
         return (
           <div
             key={message.id}
-            className={`border-b border-border p-4 cursor-pointer transition-colors hover:bg-muted ${
-              isSelected ? 'bg-blue-50 dark:bg-blue-950/50' : ''
-            }`}
+            className={`border-b border-border p-4 cursor-pointer transition-colors hover:bg-muted ${isSelected ? 'bg-blue-50 dark:bg-blue-950/50' : ''
+              }`}
             onClick={() => onSelectMessage(message)}
             data-testid={`email-item-${message.id}`}
           >
@@ -142,7 +157,7 @@ export default function EmailList({
                   {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-foreground truncate" data-testid="text-sender">
@@ -155,18 +170,22 @@ export default function EmailList({
                     </span>
                   </div>
                 </div>
-                
+
                 <p className="text-sm text-foreground mb-1 truncate" data-testid="text-subject">
                   {message.subject}
                 </p>
-                
+
                 <p className="text-sm text-muted-foreground mb-2 truncate" data-testid="text-preview">
-                  {message.isDecrypted ? 
-                    (message.body ? message.body.substring(0, 100) + "..." : "No preview available") :
-                    message.isEncrypted ? "Encrypted message - decrypt to view" : "No preview available"
+                  {message.securityLevel === "level1" && message.isViewed ?
+                    "🧨 Message Consumed – Quantum Key Destroyed" :
+                    (message.isDecrypted && message.body) ?
+                      message.body.substring(0, 100) + "..." :
+                      message.isEncrypted ?
+                        (message.securityLevel === "level1" ? "🔐 Quantum OTP Protected" : "Encrypted message - open to view") :
+                        "No preview available"
                   }
                 </p>
-                
+
                 <div className="flex items-center space-x-3 text-xs">
                   {message.attachments && message.attachments.length > 0 && (
                     <span className="inline-flex items-center text-muted-foreground">
@@ -174,7 +193,7 @@ export default function EmailList({
                       {message.attachments.length} attachment{message.attachments.length > 1 ? 's' : ''}
                     </span>
                   )}
-                  
+
                   {encryptionStatus && (
                     <span className={`inline-flex items-center ${encryptionStatus.color}`}>
                       <encryptionStatus.icon className="mr-1 h-3 w-3" />

@@ -65,12 +65,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { username, email, password } = req.body;
-      
+
       // Validate required fields
       if (!username || !email || !password) {
         return res.status(400).json({ message: "Username, email, and password are required" });
       }
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emailProvider: "qumail", // Internal platform only
         defaultSecurityLevel: "level1"
       });
-      
+
       // Log registration
       await storage.createAuditLog({
         userId: user.id,
@@ -105,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      
+
       const user = await storage.getUserByEmail(email);
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/logout", requireAuth, async (req, res) => {
     const userId = req.session.userId;
-    
+
     await storage.createAuditLog({
       userId,
       action: "user_logout",
@@ -150,14 +150,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      res.json({ 
-        user: { 
-          id: user.id, 
-          email: user.email, 
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
           username: user.username,
           emailProvider: user.emailProvider,
           defaultSecurityLevel: user.defaultSecurityLevel
-        } 
+        }
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to get user info" });
@@ -175,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const keyRequest = keyRequestSchema.parse(req.body);
       const response = await kmeSimulator.requestKey(keyRequest);
-      
+
       res.json(response);
     } catch (error) {
       console.error("KME request key error:", error);
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { keyId } = req.params;
       const keyMaterial = await kmeSimulator.getKey(keyId);
-      
+
       if (!keyMaterial) {
         return res.status(404).json({ message: "Key not found or expired" });
       }
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const ack = ackSchema.parse(req.body);
       const success = await kmeSimulator.acknowledgeKeyUsage(keyId, ack);
-      
+
       if (!success) {
         return res.status(400).json({ message: "Failed to acknowledge key usage" });
       }
@@ -246,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: key.isActive,
         createdAt: key.createdAt
       }));
-      
+
       res.json(safeKeys);
     } catch (error) {
       console.error("Get keys error:", error);
@@ -262,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const { keyLength, recipient } = requestSchema.parse(req.body);
-      
+
       const keyRequest = {
         request_id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         key_length_bits: keyLength * 8,
@@ -270,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const response = await kmeSimulator.requestKey(keyRequest);
-      
+
       await storage.createAuditLog({
         userId: req.session.userId,
         action: "key_requested",
@@ -291,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const folder = req.query.folder as string || "inbox";
       const messages = await storage.getMessagesByUser(req.session.userId as string, folder);
-      
+
       res.json(messages);
     } catch (error) {
       console.error("Get emails error:", error);
@@ -303,37 +303,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { messageId } = req.params;
       const message = await storage.getMessage(messageId);
-      
+
       if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
-      // Level 1 security: View once logic
+      // Level 1 security: Check if already consumed
       if (message.securityLevel === SecurityLevel.LEVEL1_OTP && message.isViewed) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: "This message was marked as 'View Once' and has already been read. Content is destroyed.",
-          isViewedOnce: true 
+          isViewedOnce: true
         });
-      }
-
-      // Mark as viewed if it's Level 1
-      if (message.securityLevel === SecurityLevel.LEVEL1_OTP && !message.isViewed) {
-        // Log the view once access FIRST
-        await storage.createAuditLog({
-          userId: req.session.userId as string,
-          action: "view_once_accessed",
-          details: { messageId }
-        });
-
-        // Update storage to mark as viewed and CLEAR content
-        await storage.updateMessage(messageId, { 
-          isViewed: true,
-          body: "",
-          encryptedBody: ""
-        });
-        
-        // Return the original message content for this one-time view
-        return res.json(message);
       }
 
       res.json(message);
@@ -359,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const emailData = sendSchema.parse(req.body);
       const user = await storage.getUser(req.session.userId as string);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -390,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { messageId } = req.params;
       const { body } = z.object({ body: z.string() }).parse(req.body);
-      
+
       const message = await storage.getMessage(messageId);
       if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
@@ -412,11 +392,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 
-      const updated = await storage.updateMessage(messageId, { 
-        body,
+      // Re-encrypt body for sender if needed
+      let senderEncryptedBody = message.encryptedBody;
+      if (message.isEncrypted && message.keyId) {
+        const { cryptoEngine } = await import("./services/cryptoEngine");
+        const keyMaterial = await kmeSimulator.getKey(message.keyId);
+        if (keyMaterial && keyMaterial.key_material) {
+          senderEncryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key_material);
+        }
+      }
+
+      const updated = await storage.updateMessage(messageId, {
+        body: message.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
+        encryptedBody: senderEncryptedBody,
         editedAt: new Date()
       });
-      
+
       // Update the receiver's copy as well
       const receiverMessages = await db.select().from(messages).where(
         and(
@@ -429,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const msg of receiverMessages) {
         console.log(`[SYNC DEBUG] Updating message ${msg.id} for user ${msg.userId}`);
-        
+
         // If the message was encrypted, we need to re-encrypt the body
         let encryptedBody = msg.encryptedBody;
         if (msg.isEncrypted && msg.keyId) {
@@ -442,13 +433,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update with raw database call
         await db.update(messages)
-          .set({ 
-            body: msg.isDecrypted ? body : null,
+          .set({
+            body: msg.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
             encryptedBody: encryptedBody,
             editedAt: new Date(),
           })
           .where(eq(messages.id, msg.id));
-          
+
         console.log(`[SYNC DEBUG] Database update complete for ${msg.id}`);
 
         // Notify user via WebSocket for instant update
@@ -462,22 +453,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updated);
     } catch (error) {
+      console.error("Edit message error:", error);
       res.status(400).json({ message: "Failed to edit message" });
     }
   });
+
 
   app.post("/api/emails/:messageId/decrypt", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
       const result = await emailService.decryptEmail(messageId, req.session.userId as string);
-      
+
       if (!result || !result.success) {
         return res.status(400).json({ message: "Failed to decrypt email" });
       }
 
-      res.json({ 
+      // Plaintext is returned in response but NEVER persisted to DB for secure levels
+      res.json({
         message: "Email decrypted successfully",
-        success: true
+        success: true,
+        decryptedContent: result.decryptedContent
       });
     } catch (error) {
       console.error("Decrypt email error:", error);
@@ -489,7 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { messageId } = req.params;
       const message = await storage.getMessage(messageId);
-      
+
       if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
@@ -499,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           body: null,
           encryptedBody: null
         });
-        
+
         await storage.createAuditLog({
           userId: req.session.userId as string,
           action: "email_content_purged",
@@ -518,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { messageId, attachmentIndex } = req.params;
       const message = await storage.getMessage(messageId);
-      
+
       if (!message || message.userId !== (req.session.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
@@ -526,13 +521,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const index = parseInt(attachmentIndex);
       const attachments = (message.attachments || []) as any[];
       const attachment = attachments[index];
-      
+
       if (!attachment) {
         return res.status(404).json({ message: "Attachment not found" });
       }
 
       let fileContent: Buffer;
-      
+
       if (attachment.content) {
         // If content is stored as base64 string, decode it
         if (typeof attachment.content === 'string') {
@@ -618,14 +613,14 @@ startxref
           fileContent = Buffer.from(`Sample file content for: ${attachment.filename}\nFile type: ${attachment.contentType}`, 'utf-8');
         }
       }
-      
+
       // Set proper headers for file download
       const encodedFilename = encodeURIComponent(attachment.filename);
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"; filename*=UTF-8''${encodedFilename}`);
       res.setHeader('Content-Type', attachment.contentType);
       res.setHeader('Content-Length', fileContent.length);
       res.setHeader('Cache-Control', 'no-cache');
-      
+
       res.send(fileContent);
     } catch (error) {
       console.error("Download attachment error:", error);
@@ -633,14 +628,14 @@ startxref
     }
   });
 
-  
+
 
   // Audit logs
   app.get("/api/audit", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const logs = await storage.getAuditLogs(req.session.userId, limit);
-      
+
       res.json(logs);
     } catch (error) {
       console.error("Get audit logs error:", error);
@@ -658,7 +653,7 @@ startxref
       });
 
       const settings = settingsSchema.parse(req.body);
-      
+
       const updatedUser = await storage.updateUser(req.session.userId as string, settings);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });

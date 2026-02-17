@@ -1,6 +1,7 @@
 import { SecurityLevel, type User, type InsertMessage } from "@shared/schema";
 import { storage } from "../storage";
 import { cryptoEngine } from "./cryptoEngine";
+import { kmeSimulator } from "./kmeSimulator";
 
 export interface EmailAttachment {
   filename: string;
@@ -74,19 +75,21 @@ export class EmailService {
 
       const commonMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Store message in sender's sent folder (always decrypted for sender)
+      // Store message in sender's sent folder
+      // In secure modes, even the sender version must be NULL in DB.
+      // Encryption happens BEFORE database insert.
       await storage.createMessage({
         userId: user.id,
         messageId: commonMessageId,
         from: user.email,
         to: options.to,
         subject: options.subject,
-        body: options.body, // Always store original body for sender
+        body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
         encryptedBody: encryptedBody,
         securityLevel: options.securityLevel,
         keyId,
         isEncrypted: options.securityLevel !== SecurityLevel.LEVEL4_PLAIN,
-        isDecrypted: true, // Sender can always see their own messages
+        isDecrypted: options.securityLevel === SecurityLevel.LEVEL4_PLAIN,
         metadata: metadata,
         attachments: options.attachments ? options.attachments.map(a => ({
           filename: a.filename,
@@ -180,9 +183,27 @@ export class EmailService {
         return { success: false };
       }
 
+      if (message.securityLevel === SecurityLevel.LEVEL1_OTP && message.isViewed) {
+        return {
+          success: false,
+          error: "This message was already viewed and its content has been destroyed.",
+          isViewedOnce: true
+        };
+      }
+
       if (!message.isEncrypted || message.isDecrypted) {
-        console.log(`Message already decrypted or not encrypted: messageId=${messageId}`);
-        return { success: true, decryptedContent: message.body }; 
+        if (message.securityLevel === SecurityLevel.LEVEL1_OTP) {
+          if (!message.body) {
+            return { success: false, error: "Content already destroyed." };
+          }
+        } else if (message.securityLevel === SecurityLevel.LEVEL4_PLAIN) {
+          return { success: true, decryptedContent: message.body };
+        } else if (message.body) {
+          // For levels 2 and 3, if we somehow have a body, return it
+          return { success: true, decryptedContent: message.body };
+        }
+        // If body is null for levels 2 or 3, we proceed to decrypt again
+        console.log(`Proceeding to re-decrypt message for Level 2/3: messageId=${messageId}`);
       }
 
       if (!message.encryptedBody) {
@@ -196,10 +217,46 @@ export class EmailService {
       const decryptionResult = await cryptoEngine.decrypt(message.encryptedBody, metadata);
 
       if (decryptionResult.verified) {
-        await storage.updateMessage(messageId, {
-          body: decryptionResult.decryptedData,
-          isDecrypted: true
-        });
+        // Handle destruction for Level 1
+        if (message.securityLevel === SecurityLevel.LEVEL1_OTP) {
+          // 1. Destroy key in KME
+          if (message.keyId) {
+            await kmeSimulator.destroyKey(message.keyId);
+          }
+
+          // Also destroy attachment keys if any
+          if (message.encryptedAttachments && Array.isArray(message.encryptedAttachments)) {
+            for (const att of (message.encryptedAttachments as any[])) {
+              if (att.keyId) {
+                await kmeSimulator.destroyKey(att.keyId);
+              }
+            }
+          }
+
+          // 2. Global Destruction: Update storage to mark as viewed and DESTROY encrypted content
+          // for ALL copies of this message (sender and receiver)
+          const { db } = await import("../db");
+          const { messages } = await import("@shared/schema");
+          const { eq } = await import("drizzle-orm");
+
+          await db.update(messages)
+            .set({
+              isViewed: true,
+              isDecrypted: true,
+              body: null,
+              encryptedBody: null,
+              encryptedAttachments: null,
+              editedAt: new Date()
+            })
+            .where(eq(messages.messageId, message.messageId));
+
+          console.log(`Global destruction completed for Level 1 message: ${message.messageId}`);
+        } else {
+          // For levels 2 and 3, just mark as decrypted in memory (we don't persist body)
+          await storage.updateMessage(messageId, {
+            isDecrypted: true
+          });
+        }
 
         await storage.createAuditLog({
           userId,

@@ -44,7 +44,7 @@ export const api = {
     return response.json();
   },
 
-  async decryptEmail(messageId: string): Promise<{ success: boolean }> {
+  async decryptEmail(messageId: string): Promise<{ success: boolean; decryptedContent: string }> {
     const response = await fetch(`/api/emails/${messageId}/decrypt`, {
       method: "POST",
       headers: {
@@ -76,7 +76,7 @@ export const api = {
     const blob = await response.blob();
     const contentDisposition = response.headers.get('Content-Disposition');
     const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
-    
+
     // Extract filename from Content-Disposition header
     let filename = 'download';
     if (contentDisposition) {
