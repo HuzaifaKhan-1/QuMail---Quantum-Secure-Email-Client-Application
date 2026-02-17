@@ -64,6 +64,7 @@ export default function EmailPreview({
       // Invalidate both sent and inbox queries to ensure sync
       queryClient.invalidateQueries({ queryKey: ["/api/emails", "sent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/emails", "inbox"] });
+      setDecryptedBody(editValue);
       setIsEditing(false);
       toast({ title: "Message edited" });
     },
@@ -99,7 +100,7 @@ export default function EmailPreview({
   };
 
   const startEditing = () => {
-    setEditValue(message?.body || "");
+    setEditValue(displayBody || "");
     setIsEditing(true);
   };
 

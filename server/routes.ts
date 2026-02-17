@@ -392,19 +392,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 
-      // Re-encrypt body for sender if needed
-      let senderEncryptedBody = message.encryptedBody;
-      if (message.isEncrypted && message.keyId) {
-        const { cryptoEngine } = await import("./services/cryptoEngine");
-        const keyMaterial = await kmeSimulator.getKey(message.keyId);
-        if (keyMaterial && keyMaterial.key_material) {
-          senderEncryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key_material);
-        }
-      }
+      // Re-encrypt body for both sender and receiver using the standard encryption engine
+      // This ensures Level 1, 2, and 3 are handled correctly with fresh keys/metadata
+      const { cryptoEngine } = await import("./services/cryptoEngine");
+      const encryptionResult = await cryptoEngine.encrypt(
+        body,
+        message.securityLevel as SecurityLevel,
+        message.to
+      );
 
       const updated = await storage.updateMessage(messageId, {
         body: message.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
-        encryptedBody: senderEncryptedBody,
+        encryptedBody: encryptionResult.encryptedData,
+        keyId: encryptionResult.keyId,
+        metadata: encryptionResult.metadata,
         editedAt: new Date()
       });
 
@@ -421,21 +422,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const msg of receiverMessages) {
         console.log(`[SYNC DEBUG] Updating message ${msg.id} for user ${msg.userId}`);
 
-        // If the message was encrypted, we need to re-encrypt the body
-        let encryptedBody = msg.encryptedBody;
-        if (msg.isEncrypted && msg.keyId) {
-          const { cryptoEngine } = await import("./services/cryptoEngine");
-          const keyMaterial = await kmeSimulator.getKey(msg.keyId);
-          if (keyMaterial && keyMaterial.key_material) {
-            encryptedBody = await cryptoEngine.encryptBody(body, keyMaterial.key_material);
-          }
-        }
-
-        // Update with raw database call
+        // Update with synchronized content and metadata
         await db.update(messages)
           .set({
             body: msg.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
-            encryptedBody: encryptedBody,
+            encryptedBody: encryptionResult.encryptedData,
+            keyId: encryptionResult.keyId,
+            metadata: encryptionResult.metadata,
             editedAt: new Date(),
           })
           .where(eq(messages.id, msg.id));
