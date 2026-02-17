@@ -213,7 +213,21 @@ export class EmailService {
       }
 
       const metadata = message.metadata as Record<string, any>;
-      console.log(`Decrypting message ${messageId} with metadata:`, metadata);
+      console.log(`[DECRYPT DEBUG] Attempting to decrypt ${messageId}: keyId=${message.keyId}, metadataKeyId=${metadata.keyId}, securityLevel=${message.securityLevel}`);
+
+      // Verify key exists in KME before attempting decryption for secure levels
+      if (message.isEncrypted && message.keyId) {
+        const keyMaterial = await kmeSimulator.getKey(message.keyId);
+        if (!keyMaterial) {
+          console.error(`[DECRYPT ERROR] Key ${message.keyId} not found in KME for message ${messageId}`);
+          return {
+            success: false,
+            error: message.securityLevel === SecurityLevel.LEVEL1_OTP
+              ? "Quantum key destroyed (View Once security policy)"
+              : "Security key not found. Decryption failed."
+          };
+        }
+      }
 
       const decryptionResult = await cryptoEngine.decrypt(message.encryptedBody, metadata);
 
@@ -281,6 +295,7 @@ export class EmailService {
 
     } catch (error: any) {
       console.error("Failed to decrypt email:", error);
+      console.error(error.stack);
       return { success: false, error: error.message };
     }
   }

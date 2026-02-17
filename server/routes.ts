@@ -401,6 +401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message.to
       );
 
+      console.log(`[EDIT DEBUG] Re-encrypted Level 1 message: dataLength=${encryptionResult.metadata.dataLength}, keyId=${encryptionResult.keyId}`);
+
       const updated = await storage.updateMessage(messageId, {
         body: message.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
         encryptedBody: encryptionResult.encryptedData,

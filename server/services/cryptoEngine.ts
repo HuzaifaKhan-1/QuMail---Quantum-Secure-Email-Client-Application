@@ -250,14 +250,21 @@ export class CryptoEngine {
   // Decryption methods
   private async decryptOTP(encryptedData: string, metadata: Record<string, any>): Promise<DecryptionResult> {
     const dataBuffer = Buffer.from(encryptedData, 'base64');
-    const dataLength = metadata.dataLength;
+    const dataLength = typeof metadata.dataLength === 'number' ? metadata.dataLength : parseInt(metadata.dataLength);
 
-    if (!dataLength || typeof dataLength !== 'number') {
-      throw new Error(`Invalid data length in metadata: ${dataLength}`);
+    if (isNaN(dataLength) || dataLength < 0) {
+      console.error(`[OTP ERROR] Metadata missing dataLength or invalid:`, metadata);
+      throw new Error(`Invalid data length in metadata: ${metadata.dataLength}`);
     }
 
     const encrypted = dataBuffer.slice(0, dataLength);
     const authTag = dataBuffer.slice(dataLength);
+
+    console.log(`[OTP DEBUG] Decrypting: dataBuffer=${dataBuffer.length}, dataLength=${dataLength}, authTag=${authTag.length}`);
+
+    if (authTag.length !== 32) {
+      console.error(`[OTP ERROR] Invalid auth tag length: expected 32, got ${authTag.length}. dataBuffer length: ${dataBuffer.length}, dataLength: ${dataLength}`);
+    }
 
     const keyMaterial = await kmeSimulator.getKey(metadata.keyId);
     if (!keyMaterial) {
@@ -272,6 +279,11 @@ export class CryptoEngine {
     const expectedTag = hmac.digest();
 
     const verified = expectedTag.equals(authTag);
+
+    if (!verified) {
+      console.error(`[OTP ERROR] Authentication failed for Level 1 message. Expected tag: ${expectedTag.toString('hex')}, Got: ${authTag.toString('hex')}`);
+      console.error(`[OTP ERROR] Metadata used: ${JSON.stringify(metadata)}`);
+    }
 
     // XOR to decrypt
     if (dataLength <= 0) {

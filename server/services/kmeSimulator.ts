@@ -82,7 +82,7 @@ class KMESimulator {
     if (currentPoolSize < targetPoolSize) {
       const keysToGenerate = targetPoolSize - currentPoolSize;
       for (let i = 0; i < keysToGenerate; i++) {
-        await this.generateQuantumKey();
+        await this.generateAndStoreQuantumKey();
       }
     }
 
@@ -209,7 +209,6 @@ class KMESimulator {
       }
     }
 
-    // 3. Fallback to storage
     if (!key) {
       try {
         const { storage } = await import('../storage');
@@ -225,11 +224,16 @@ class KMESimulator {
           };
 
           this.keyPool.set(keyId, key);
-          console.log(`Loaded key from storage: ${keyId}`);
+          console.log(`[KME DEBUG] Loaded key from storage: ${keyId}, material length: ${key.key_material.length}`);
         }
       } catch (error) {
-        console.error(`Failed to load key from storage: ${keyId}`, error);
+        console.error(`[KME ERROR] Failed to load key from storage: ${keyId}`, error);
       }
+    }
+
+    if (key) {
+      const buf = Buffer.from(key.key_material, 'base64');
+      console.log(`[KME DEBUG] Returning key ${keyId}: base64Length=${key.key_material.length}, bufferLength=${buf.length}, requestedBits=${key.key_length_bits}`);
     }
 
     if (!key) {
@@ -275,7 +279,7 @@ class KMESimulator {
 
       // Keep key available for decryption even if consumed
       // Only mark as inactive if it exceeds maximum usage significantly
-      if (newConsumedBytes >= key.key_length_bits * 1.5) { // Example: inactive if consumed 1.5x its own size
+      if (newConsumedBytes >= (key.key_length_bits / 8) * 1.5) { // Compare bytes, not bits
         key.isActive = false;
         await storage.deactivateQuantumKey(keyId);
       }
