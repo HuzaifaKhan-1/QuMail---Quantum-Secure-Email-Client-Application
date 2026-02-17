@@ -512,105 +512,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const index = parseInt(attachmentIndex);
-      const attachments = (message.attachments || []) as any[];
-      const attachment = attachments[index];
+      let fileContent: Buffer | null = null;
+      let contentType = 'application/octet-stream';
+      let filename = 'attachment';
 
-      if (!attachment) {
-        return res.status(404).json({ message: "Attachment not found" });
+      if (message.isEncrypted && Array.isArray(message.encryptedAttachments)) {
+        const encryptedAttachment = (message.encryptedAttachments as any[])[index];
+        if (encryptedAttachment) {
+          filename = encryptedAttachment.filename;
+          contentType = encryptedAttachment.contentType;
+
+          const { cryptoEngine } = await import("./services/cryptoEngine");
+          const decryptionResult = await cryptoEngine.decrypt(
+            encryptedAttachment.encryptedData,
+            encryptedAttachment.metadata
+          );
+
+          if (decryptionResult.verified) {
+            fileContent = decryptionResult.decryptedData;
+          }
+        }
       }
 
-      let fileContent: Buffer;
+      if (!fileContent) {
+        const attachments = (message.attachments || []) as any[];
+        const attachment = attachments[index];
 
-      if (attachment.content) {
-        // If content is stored as base64 string, decode it
-        if (typeof attachment.content === 'string') {
-          fileContent = Buffer.from(attachment.content, 'base64');
-        } else {
-          // If content is already a Buffer
-          fileContent = attachment.content;
+        if (!attachment) {
+          return res.status(404).json({ message: "Attachment not found" });
         }
-      } else {
-        // Create proper file content based on type
-        if (attachment.contentType.startsWith('image/')) {
-          if (attachment.contentType === 'image/jpeg' || attachment.contentType === 'image/jpg') {
-            // Create a minimal valid JPEG (1x1 pixel red)
-            fileContent = Buffer.from('/9j/4AAQSkZJRGABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==', 'base64');
-          } else if (attachment.contentType === 'image/png') {
-            // Create a minimal valid PNG (1x1 pixel red)
-            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+        filename = attachment.filename;
+        contentType = attachment.contentType;
+
+        if (attachment.content) {
+          // If content is stored as base64 string, decode it
+          if (typeof attachment.content === 'string') {
+            fileContent = Buffer.from(attachment.content, 'base64');
           } else {
-            // Default PNG for other image types
-            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+            // If content is already a Buffer
+            fileContent = attachment.content;
           }
-        } else if (attachment.contentType === 'text/plain') {
-          fileContent = Buffer.from(`This is a sample text file: ${attachment.filename}\n\nContent of the file goes here.\nThis is just a demonstration file.`, 'utf-8');
-        } else if (attachment.contentType === 'application/pdf') {
-          // Create a minimal valid PDF
-          const pdfContent = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
+        }
+      }
 
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Contents 4 0 R
->>
-endobj
-
-4 0 obj
-<<
-/Length 44
->>
-stream
-BT
-/F1 12 Tf
-72 720 Td
-(Sample PDF: ${attachment.filename}) Tj
-ET
-endstream
-endobj
-
-xref
-0 5
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000201 00000 n 
-trailer
-<<
-/Size 5
-/Root 1 0 R
->>
-startxref
-294
-%%EOF`;
-          fileContent = Buffer.from(pdfContent, 'utf-8');
-        } else if (attachment.contentType.startsWith('application/') || attachment.contentType.includes('document')) {
-          fileContent = Buffer.from(`Sample document content for: ${attachment.filename}\n\nThis is a demonstration file created by QuMail.\nOriginal file type: ${attachment.contentType}`, 'utf-8');
+      if (!fileContent) {
+        // Create proper file content based on type (last resort/fallback)
+        if (contentType.startsWith('image/')) {
+          if (contentType === 'image/jpeg' || contentType === 'image/jpg') {
+            fileContent = Buffer.from('/9j/4AAQSkZJRGABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==', 'base64');
+          } else {
+            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+          }
         } else {
-          fileContent = Buffer.from(`Sample file content for: ${attachment.filename}\nFile type: ${attachment.contentType}`, 'utf-8');
+          fileContent = Buffer.from(`Sample file content for: ${filename}\nFile type: ${contentType}`, 'utf-8');
         }
       }
 
       // Set proper headers for file download
-      const encodedFilename = encodeURIComponent(attachment.filename);
-      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"; filename*=UTF-8''${encodedFilename}`);
-      res.setHeader('Content-Type', attachment.contentType);
+      const encodedFilename = encodeURIComponent(filename);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`);
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Length', fileContent.length);
       res.setHeader('Cache-Control', 'no-cache');
 

@@ -52,7 +52,8 @@ export class EmailService {
               originalSize: attachment.content.length,
               contentType: attachment.contentType,
               encryptedData: encryptedAttachment.encryptedData,
-              keyId: encryptedAttachment.keyId
+              keyId: encryptedAttachment.keyId,
+              metadata: encryptedAttachment.metadata // Store metadata for each attachment
             });
           }
         }
@@ -76,8 +77,6 @@ export class EmailService {
       const commonMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       // Store message in sender's sent folder
-      // In secure modes, even the sender version must be NULL in DB.
-      // Encryption happens BEFORE database insert.
       await storage.createMessage({
         userId: user.id,
         messageId: commonMessageId,
@@ -94,7 +93,8 @@ export class EmailService {
         attachments: options.attachments ? options.attachments.map(a => ({
           filename: a.filename,
           contentType: a.contentType,
-          size: a.content.length
+          size: a.content.length,
+          content: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? a.content.toString('base64') : null
         })) : null,
         encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
         folder: "sent",
@@ -119,7 +119,8 @@ export class EmailService {
           attachments: options.attachments ? options.attachments.map(a => ({
             filename: a.filename,
             contentType: a.contentType,
-            size: a.content.length
+            size: a.content.length,
+            content: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? a.content.toString('base64') : null
           })) : null,
           encryptedAttachments: encryptedAttachments.length > 0 ? encryptedAttachments : null,
           folder: "inbox",
@@ -270,7 +271,7 @@ export class EmailService {
 
         return {
           success: true,
-          decryptedContent: decryptionResult.decryptedData
+          decryptedContent: decryptionResult.decryptedData.toString('utf8')
         };
       }
 

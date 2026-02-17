@@ -10,7 +10,7 @@ export interface EncryptionResult {
 }
 
 export interface DecryptionResult {
-  decryptedData: string;
+  decryptedData: Buffer;
   verified: boolean;
 }
 
@@ -284,7 +284,7 @@ export class CryptoEngine {
     }
 
     return {
-      decryptedData: decrypted.toString('utf8'),
+      decryptedData: decrypted,
       verified
     };
   }
@@ -306,7 +306,7 @@ export class CryptoEngine {
     const result = this.aesGCMDecrypt(encrypted, aesKey, iv, authTag);
 
     return {
-      decryptedData: result.decrypted.toString('utf8'),
+      decryptedData: result.decrypted,
       verified: result.verified
     };
   }
@@ -343,18 +343,18 @@ export class CryptoEngine {
       }
 
       return {
-        decryptedData: result.decrypted.toString('utf8'),
+        decryptedData: result.decrypted,
         verified: result.verified
       };
     } catch (error: any) {
       console.error("[PQC ERROR] Decryption process failed:", error);
-      return { decryptedData: "", verified: false };
+      return { decryptedData: Buffer.alloc(0), verified: false };
     }
   }
 
   private async decryptPlain(encryptedData: string): Promise<DecryptionResult> {
     return {
-      decryptedData: Buffer.from(encryptedData, 'base64').toString('utf8'),
+      decryptedData: Buffer.from(encryptedData, 'base64'),
       verified: true
     };
   }
