@@ -1,144 +1,87 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { GoogleLogin } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Mail } from "lucide-react";
+import { Shield, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Quantum Particle Animation Component
-const QuantumParticles = () => {
+const QuantumBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    let animationFrameId: number;
+    let particles: Particle[] = [];
 
-    // Particle class
-    class QuantumParticle {
+    class Particle {
       x: number;
       y: number;
-      vx: number;
-      vy: number;
       size: number;
-      opacity: number;
+      speedX: number;
+      speedY: number;
       color: string;
-      energy: number;
-      phase: number;
 
       constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 0.5;
-        this.vy = (Math.random() - 0.5) * 0.5;
-        this.size = Math.random() * 3 + 1;
-        this.opacity = Math.random() * 0.6 + 0.2;
-        this.energy = Math.random() * 100;
-        this.phase = Math.random() * Math.PI * 2;
-        
-        // Quantum-themed colors
-        const colors = [
-          'rgba(59, 130, 246, ', // Blue
-          'rgba(139, 92, 246, ', // Purple  
-          'rgba(6, 182, 212, ',  // Cyan
-          'rgba(34, 197, 94, ',  // Green
-          'rgba(168, 85, 247, ', // Violet
-        ];
-        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.x = Math.random() * window.innerWidth;
+        this.y = Math.random() * window.innerHeight;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedX = Math.random() * 1 - 0.5;
+        this.speedY = Math.random() * 1 - 0.5;
+        this.color = `rgba(147, 51, 234, ${Math.random() * 0.5 + 0.2})`; // Purple
       }
 
       update() {
-        // Quantum tunneling effect - particles can suddenly change direction
-        if (Math.random() < 0.001) {
-          this.vx = (Math.random() - 0.5) * 0.8;
-          this.vy = (Math.random() - 0.5) * 0.8;
-        }
+        this.x += this.speedX;
+        this.y += this.speedY;
 
-        // Wave function behavior
-        this.phase += 0.02;
-        this.x += this.vx + Math.sin(this.phase) * 0.1;
-        this.y += this.vy + Math.cos(this.phase) * 0.1;
-
-        // Energy fluctuation
-        this.energy += (Math.random() - 0.5) * 2;
-        this.energy = Math.max(0, Math.min(100, this.energy));
-        
-        // Opacity based on energy
-        this.opacity = 0.2 + (this.energy / 100) * 0.6;
-
-        // Wrap around edges
-        if (this.x < 0) this.x = canvas.width;
-        if (this.x > canvas.width) this.x = 0;
-        if (this.y < 0) this.y = canvas.height;
-        if (this.y > canvas.height) this.y = 0;
+        if (this.x > window.innerWidth) this.x = 0;
+        if (this.x < 0) this.x = window.innerWidth;
+        if (this.y > window.innerHeight) this.y = 0;
+        if (this.y < 0) this.y = window.innerHeight;
       }
 
       draw() {
-        ctx.save();
-        
-        // Quantum glow effect
-        const gradient = ctx.createRadialGradient(
-          this.x, this.y, 0,
-          this.x, this.y, this.size * 3
-        );
-        gradient.addColorStop(0, this.color + this.opacity + ')');
-        gradient.addColorStop(0.5, this.color + (this.opacity * 0.5) + ')');
-        gradient.addColorStop(1, this.color + '0)');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Core particle
-        ctx.fillStyle = this.color + this.opacity + ')';
+        if (!ctx) return;
+        ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.restore();
       }
     }
 
-    // Create particles
-    const particles: QuantumParticle[] = [];
-    const particleCount = Math.min(150, Math.floor((canvas.width * canvas.height) / 8000));
-    
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(new QuantumParticle());
-    }
+    const init = () => {
+      particles = [];
+      for (let i = 0; i < 100; i++) {
+        particles.push(new Particle());
+      }
+    };
 
-    // Animation loop
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((particle) => {
+        particle.update();
+        particle.draw();
+      });
 
-      // Draw connections between nearby particles
+      // Draw connections
+      ctx.strokeStyle = "rgba(147, 51, 234, 0.1)";
+      ctx.lineWidth = 0.5;
       for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
+        for (let j = i; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 120) {
-            const opacity = (1 - distance / 120) * 0.1;
-            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`;
-            ctx.lineWidth = 0.5;
+          if (distance < 100) {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
@@ -147,322 +90,158 @@ const QuantumParticles = () => {
         }
       }
 
-      // Update and draw particles
-      particles.forEach(particle => {
-        particle.update();
-        particle.draw();
-      });
-
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     };
 
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      init();
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
     animate();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
-      style={{ background: 'transparent' }}
+      className="fixed inset-0 pointer-events-none z-0"
+      style={{ background: "radial-gradient(circle at center, #0f172a 0%, #020617 100%)" }}
     />
   );
 };
 
-export default function Login() {
+const Login: React.FC = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isLogin, setIsLogin] = useState(true);
 
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: ""
-  });
-
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-
-  // Check if already logged in
-  const { data: userInfo, isLoading } = useQuery({
+  // Redirect if already logged in
+  const { data: userInfo } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: () => api.getMe(),
     retry: false,
-    staleTime: 0, // Always check for fresh data
-    gcTime: 0 // Don't cache the result
   });
 
-  // Use useEffect to handle redirection to avoid hooks order issues
-  React.useEffect(() => {
-    if (userInfo?.user && !isLoading) {
+  useEffect(() => {
+    if (userInfo?.user) {
       setLocation("/inbox");
     }
-  }, [userInfo, isLoading, setLocation]);
+  }, [userInfo, setLocation]);
 
-  const loginMutation = useMutation({
-    mutationFn: (credentials: { email: string; password: string }) =>
-      api.login(credentials),
-    onSuccess: () => {
+  const googleLoginMutation = useMutation({
+    mutationFn: (credential: string) => api.googleLogin(credential),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/auth/me"], { user: data.user });
       toast({
-        title: "Login successful",
-        description: "Welcome to QuMail!",
+        title: "Welcome to QuMail",
+        description: `Authenticated as ${data.user.secureEmail}`,
       });
       setLocation("/inbox");
     },
     onError: (error: any) => {
       toast({
-        title: "Login failed",
-        description: error.message || "Invalid credentials",
+        title: "Authentication Failed",
+        description: error.message || "Could not sign in with Google",
         variant: "destructive",
-      });
-    }
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (userData: { username: string; email: string; password: string }) => {
-      return api.register(userData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      setLocation("/inbox");
-      toast({
-        title: "Account created",
-        description: "Welcome to QuMail! Your secure internal email platform.",
       });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Registration failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
-    }
   });
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    loginMutation.mutate(loginForm);
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username || !email || !password) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    registerMutation.mutate({ username, email, password });
-  };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
-      {/* Quantum particle background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-blue-100 to-cyan-50"></div>
-      <QuantumParticles />
-      
-      {/* Quantum grid overlay */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px'
-        }}></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+      <QuantumBackground />
 
-      <div className="w-full max-w-6xl relative z-10 flex items-center justify-center">
-        {/* Left side - "Qu" with dynamic quantum particle effect */}
-        <div className="flex-1 flex justify-end pr-12">
-          <div className="relative">
-            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 animate-pulse">
-              Qu
-            </div>
-            {/* Dynamic quantum orb effect around "Qu" */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-32 h-32 relative">
-                <div className="absolute inset-0 rounded-full border-2 border-blue-600/40 animate-spin" style={{ animation: 'spin 3s linear infinite' }}></div>
-                <div className="absolute inset-2 rounded-full border border-purple-600/50 animate-spin" style={{ animation: 'spin 2s linear infinite reverse' }}></div>
-                <div className="absolute inset-4 rounded-full border border-cyan-600/30 animate-pulse"></div>
-                {/* Floating quantum particles */}
-                <div className="absolute top-2 left-4 w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.5s' }}></div>
-                <div className="absolute bottom-3 right-2 w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }}></div>
-                <div className="absolute top-6 right-6 w-1 h-1 bg-cyan-600 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '1.8s' }}></div>
-                <div className="absolute bottom-6 left-3 w-1 h-1 bg-violet-600 rounded-full animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '2.2s' }}></div>
-              </div>
-            </div>
+      <div className="w-full max-w-md z-10 space-y-8">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-2xl mb-4 border border-primary/20 backdrop-blur-sm animate-pulse">
+            <Shield className="h-10 w-10 text-primary" />
           </div>
-        </div>
-
-        {/* Center - Login Form */}
-        <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/50 animate-pulse">
-              <Shield className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">QuMail</h1>
-              <p className="text-sm text-blue-600">Quantum Secure Email</p>
-            </div>
-          </div>
-          <p className="text-sm text-blue-700/80">
-            Secure your communications with quantum encryption
+          <h1 className="text-4xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+            QuMail Portal
+          </h1>
+          <p className="text-slate-400 font-medium tracking-wide">
+            Quantum-Secure Decoupled Identity Hub
           </p>
         </div>
 
-        <Card className="backdrop-blur-xl bg-white/90 border-blue-300/50 shadow-2xl shadow-blue-300/30">
-          <CardHeader>
-            <CardTitle className="text-center text-gray-800">
-              {isLogin ? "Sign In" : "Create Account"}
-            </CardTitle>
+        <Card className="border-primary/20 bg-slate-900/60 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-50 group-hover:opacity-80 transition-opacity pointer-events-none" />
+
+          <CardHeader className="text-center pb-2 relative">
+            <CardTitle className="text-xl text-slate-200">Secure Access Terminal</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Tabs value={isLogin ? "login" : "register"} onValueChange={(value) => setIsLogin(value === "login")}>
-              <TabsList className="grid w-full grid-cols-2 bg-blue-50/80 border-blue-300/50">
-                <TabsTrigger value="login" data-testid="tab-login" className="text-blue-700 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Sign In</TabsTrigger>
-                <TabsTrigger value="register" data-testid="tab-register" className="text-blue-700 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
-              </TabsList>
 
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={loginForm.email}
-                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                      placeholder="your.email@example.com"
-                      required
-                      data-testid="input-email"
-                      className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-gray-700">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={loginForm.password}
-                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                      placeholder="••••••••"
-                      required
-                      data-testid="input-password"
-                      className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg shadow-blue-500/30"
-                    disabled={loginMutation.isPending}
-                    data-testid="button-login"
-                  >
-                    {loginMutation.isPending ? "Signing In..." : "Sign In"}
-                    <Mail className="ml-2 h-4 w-4" />
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                  <form onSubmit={handleRegister} className="space-y-4">
-                    <div>
-                      <Label htmlFor="username" className="text-gray-700">Username</Label>
-                      <Input
-                        id="username"
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                        data-testid="input-username"
-                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="register-email" className="text-gray-700">Email Address</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your.email@qumail.com"
-                        required
-                        data-testid="input-register-email"
-                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
-                      />
-                      <p className="text-xs text-blue-600/70 mt-1">
-                        This will be your QuMail address for secure internal communication
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="register-password" className="text-gray-700">Password</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        data-testid="input-register-password"
-                        className="bg-white/70 border-blue-300/50 text-gray-800 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/30"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-lg shadow-purple-500/30"
-                      disabled={registerMutation.isPending}
-                      data-testid="button-register"
-                    >
-                      {registerMutation.isPending ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Creating Account...
-                        </>
-                      ) : (
-                        "Create Account"
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-            </Tabs>
-
-            <div className="mt-6 p-4 bg-blue-50/70 border border-blue-300/50 rounded-lg backdrop-blur-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <Shield className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Quantum Security Features</span>
+          <CardContent className="space-y-6 pt-4 relative">
+            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50 space-y-4">
+              <div className="flex items-center gap-3 text-slate-300 text-sm mb-2">
+                <Lock className="h-4 w-4 text-primary" />
+                <span>Verified Hybrid Identity Implementation</span>
               </div>
-              <ul className="text-xs text-gray-600 space-y-1">
-                <li>• Quantum Key Distribution (QKD) simulation</li>
-                <li>• One-Time Pad encryption for maximum security</li>
-                <li>• Post-Quantum Cryptography readiness</li>
-                <li>• End-to-end encrypted communication</li>
-              </ul>
+
+              <div className="flex flex-col items-center justify-center py-4 bg-slate-950/40 rounded-lg border border-primary/10 shadow-inner">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      googleLoginMutation.mutate(credentialResponse.credential);
+                    }
+                  }}
+                  onError={() => {
+                    toast({
+                      title: "Google Login Error",
+                      description: "The Google authentication popup failed to initialize.",
+                      variant: "destructive",
+                    });
+                  }}
+                  useOneTap
+                  theme="filled_blue"
+                  shape="pill"
+                  text="continue_with"
+                />
+              </div>
+
+              <div className="text-[10px] text-slate-500 text-center uppercase tracking-widest mt-4 font-bold">
+                Protects against identity spoofing & MITM
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 py-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-full h-1 bg-primary/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary w-full animate-progress" />
+                </div>
+                <span className="text-[8px] text-slate-500 font-bold uppercase">BB84 OTP</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-full h-1 bg-purple-500/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-500 w-full animate-progress delay-75" />
+                </div>
+                <span className="text-[8px] text-slate-500 font-bold uppercase">AES-256-Q</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-full h-1 bg-cyan-500/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-cyan-500 w-full animate-progress delay-150" />
+                </div>
+                <span className="text-[8px] text-slate-500 font-bold uppercase">Kyber PQC</span>
+              </div>
             </div>
           </CardContent>
         </Card>
-        </div>
 
-        {/* Right side - "Mail" */}
-        <div className="flex-1 flex justify-start pl-12">
-          <div className="relative">
-            <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600">
-              Mail
-            </div>
-            <div className="text-center text-sm text-blue-600/70 mt-2 tracking-widest">
-              SECURE • ENCRYPTED • PROTECTED
-            </div>
-          </div>
+        <div className="text-center text-slate-500 text-xs">
+          <p>© 2025 QuMail Quantum Security Systems</p>
+          <p className="mt-1">All encryption bound to internal verified secure identity.</p>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Login;

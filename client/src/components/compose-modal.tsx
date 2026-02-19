@@ -161,7 +161,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
     );
 
     const emailData: SendEmailRequest = {
-      to,
+      to: to.toLowerCase(),
       subject,
       body,
       securityLevel,
@@ -191,11 +191,11 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
           description: "Post-Quantum Cryptography with CRYSTALS-Kyber KEM",
           warning: null
         };
-      case SecurityLevel.LEVEL4_PLAIN:
+      default:
         return {
-          name: "Standard Email (No Encryption)",
-          description: "No encryption (not recommended)",
-          warning: "This option provides no security protection"
+          name: "Security Level",
+          description: "Select a security level",
+          warning: null
         };
     }
   };
@@ -226,14 +226,19 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
               </Label>
               <Input
                 id="modal-to"
-                type="email"
+                type="text"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                placeholder="recipient@example.com"
-                className="col-span-11"
+                placeholder="recipient@qumail.secure"
+                className="col-span-11 font-mono uppercase text-xs"
                 required
                 data-testid="modal-input-to"
               />
+              {!to.toLowerCase().endsWith('@qumail.secure') && to.length > 0 && (
+                <div className="col-start-2 col-span-11 text-[10px] text-destructive font-bold uppercase mt-1">
+                  Recipient Must Be a @qumail.secure Identity
+                </div>
+              )}
             </div>
 
             {/* Subject */}

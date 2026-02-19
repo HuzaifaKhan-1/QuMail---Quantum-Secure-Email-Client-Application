@@ -238,11 +238,23 @@ export default function EmailPreview({
             <h3 className="text-xl font-semibold text-foreground mb-2" data-testid="text-subject">
               {message.subject}
             </h3>
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span>From: <span className="font-medium text-foreground">{message.from}</span></span>
-              <span>To: <span className="font-medium text-foreground">{message.to}</span></span>
+            <div className="flex items-center space-x-4 text-xs">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground uppercase tracking-tight font-bold text-[9px]">Sender Hash</span>
+                <span className="font-mono text-primary font-bold" data-testid="text-from">
+                  {message.senderSecureEmail}
+                </span>
+              </div>
+              <div className="flex flex-col border-l border-border pl-4">
+                <span className="text-muted-foreground uppercase tracking-tight font-bold text-[9px]">Recipient Hash</span>
+                <span className="font-mono text-foreground font-bold" data-testid="text-to">
+                  {message.receiverSecureEmail}
+                </span>
+              </div>
               <span className="flex-1"></span>
-              <span>{message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}</span>
+              <span className="text-muted-foreground">
+                {message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}
+              </span>
             </div>
           </div>
           <div className="flex items-center space-x-2">

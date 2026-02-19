@@ -5,6 +5,7 @@ interface KeyRequest {
   request_id: string;
   key_length_bits: number;
   recipient?: string;
+  userSecureEmail?: string;
 }
 
 interface KeyResponse {
@@ -17,6 +18,7 @@ interface KeyMaterial {
   key_id: string;
   key_material: string; // base64 encoded
   timestamp: string;
+  userSecureEmail?: string;
 }
 
 interface KeyPoolStats {
@@ -35,9 +37,9 @@ interface QuantumKeyEntry {
   maxConsumptionBytes: number;
   isActive: boolean;
   createdAt: Date;
+  userSecureEmail?: string;
 }
 
-// Assuming QuantumKeyMaterial interface is defined elsewhere or implicitly used in changes
 interface QuantumKeyMaterial {
   key_id: string;
   key_material: string;
@@ -45,6 +47,7 @@ interface QuantumKeyMaterial {
   expiry_time: number; // Unix timestamp in seconds
   consumed_bytes: number;
   isActive?: boolean;
+  userSecureEmail?: string;
 }
 
 
@@ -102,7 +105,8 @@ class KMESimulator {
             key_material: key.keyMaterial,
             key_length_bits: key.keyLength * 8,
             expiry_time: Math.floor(key.expiryTime.getTime() / 1000),
-            consumed_bytes: key.consumedBytes || 0
+            consumed_bytes: key.consumedBytes || 0,
+            userSecureEmail: key.userSecureEmail || undefined
           });
         }
       }
@@ -144,7 +148,8 @@ class KMESimulator {
         consumedBytes: 0,
         maxConsumptionBytes: keyLengthBytes,
         isActive: true,
-        createdAt: new Date()
+        createdAt: new Date(),
+        userSecureEmail: request.userSecureEmail
       };
 
       // Add to all memory caches immediately
@@ -154,10 +159,11 @@ class KMESimulator {
         key_material: quantumKeyMaterial,
         key_length_bits: keyLengthBits,
         expiry_time: Math.floor(expiryDate.getTime() / 1000),
-        consumed_bytes: 0
+        consumed_bytes: 0,
+        userSecureEmail: request.userSecureEmail
       });
 
-      console.log(`Stored key ${keyId} with material length: ${quantumKeyMaterial.length}`);
+      console.log(`Stored key ${keyId} with material length: ${quantumKeyMaterial.length} for ${request.userSecureEmail}`);
 
       // Persist the key to storage
       await storage.createQuantumKey({
@@ -167,7 +173,8 @@ class KMESimulator {
         expiryTime: expiryDate,
         consumedBytes: 0,
         maxConsumptionBytes: keyLengthBytes,
-        isActive: true
+        isActive: true,
+        userSecureEmail: request.userSecureEmail
       });
 
       // Log the key request
@@ -175,6 +182,7 @@ class KMESimulator {
         requestId: request.request_id,
         keyLength: keyLengthBytes,
         recipient: request.recipient,
+        userSecureEmail: request.userSecureEmail,
         status: "delivered",
         deliveryUri: `/kme/keys/${keyId}`
       });

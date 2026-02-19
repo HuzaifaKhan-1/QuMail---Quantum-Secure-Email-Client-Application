@@ -4,26 +4,30 @@ import {
   auditLogs,
   quantumKeys,
   keyRequests,
+  pqcKeys,
   type User,
   type Message,
   type AuditLog,
   type QuantumKey,
   type KeyRequest,
+  type PqcKey,
   type InsertUser,
   type InsertMessage,
   type InsertAuditLog,
   type InsertQuantumKey,
-  type InsertKeyRequest
+  type InsertKeyRequest,
+  type InsertPqcKey
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleEmail(email: string): Promise<User | undefined>;
+  getUserBySecureEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleSub(sub: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
 
@@ -44,6 +48,10 @@ export interface IStorage {
   deactivateQuantumKey(keyId: string): Promise<void>;
   updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean>;
 
+  // PQC key methods
+  getPqcKey(secureEmail: string): Promise<PqcKey | undefined>;
+  createPqcKey(key: InsertPqcKey): Promise<PqcKey>;
+
   // Audit log methods
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(userId?: string, limit?: number): Promise<AuditLog[]>;
@@ -61,13 +69,18 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async getUserByGoogleEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleEmail, email));
     return user || undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+  async getUserBySecureEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.secureEmail, email));
+    return user || undefined;
+  }
+
+  async getUserByGoogleSub(sub: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleSub, sub));
     return user || undefined;
   }
 
@@ -200,6 +213,20 @@ export class DatabaseStorage implements IStorage {
     });
 
     return true;
+  }
+
+  // PQC key methods
+  async getPqcKey(secureEmail: string): Promise<PqcKey | undefined> {
+    const [key] = await db.select().from(pqcKeys).where(eq(pqcKeys.secureEmail, secureEmail));
+    return key || undefined;
+  }
+
+  async createPqcKey(insertKey: InsertPqcKey): Promise<PqcKey> {
+    const [key] = await db
+      .insert(pqcKeys)
+      .values(insertKey)
+      .returning();
+    return key;
   }
 
   // Audit log methods

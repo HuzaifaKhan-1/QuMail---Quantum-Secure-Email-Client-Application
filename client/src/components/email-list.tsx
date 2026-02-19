@@ -160,8 +160,8 @@ export default function EmailList({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-foreground truncate" data-testid="text-sender">
-                    {isSentFolder ? "To: " : ""}{displayName}
+                  <p className="text-xs font-mono font-bold text-primary truncate" data-testid="text-sender">
+                    {isSentFolder ? "→ " : "← "}{isSentFolder ? message.receiverSecureEmail : message.senderSecureEmail}
                   </p>
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <SecurityBadge level={message.securityLevel} size="sm" />

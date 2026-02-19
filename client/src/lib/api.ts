@@ -3,14 +3,13 @@ import type { User, Message, QuantumKey, KeyPoolStats, AuditLog, SendEmailReques
 
 export const api = {
   // Authentication
-  async register(userData: { username: string; email: string; password: string }) {
-    const response = await apiRequest("POST", "/api/auth/register", userData);
-    return response.json();
-  },
-
-  async login(credentials: { email: string; password: string }) {
-    const response = await apiRequest("POST", "/api/auth/login", credentials);
-    return response.json();
+  async googleLogin(credential: string) {
+    const response = await apiRequest("POST", "/api/auth/google", { credential });
+    const data = await response.json();
+    if (data.token) {
+      localStorage.setItem("qumail_token", data.token);
+    }
+    return data;
   },
 
   async logout() {

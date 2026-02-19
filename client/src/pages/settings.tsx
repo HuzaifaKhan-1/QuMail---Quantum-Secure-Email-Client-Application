@@ -13,11 +13,11 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import SecurityBadge from "@/components/security-badge";
-import { 
-  Settings as SettingsIcon, 
-  User, 
-  Shield, 
-  Mail, 
+import {
+  Settings as SettingsIcon,
+  User,
+  Shield,
+  Mail,
   Key,
   Save,
   RefreshCw,
@@ -70,7 +70,7 @@ export default function Settings() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     updateSettingsMutation.mutate({
       defaultSecurityLevel,
       // Note: Other settings would be implemented based on backend schema
@@ -102,12 +102,12 @@ export default function Settings() {
   }
 
   const user = userInfo.user;
-  const providerInfo = getProviderInfo(user.emailProvider || "unknown");
+  const providerInfo = getProviderInfo("Google");
 
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
-      
+
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4">
@@ -121,7 +121,7 @@ export default function Settings() {
                 Manage your account preferences and quantum security settings
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               {(userFetching || auditFetching) && (
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -129,7 +129,7 @@ export default function Settings() {
                   <span>Live updating...</span>
                 </div>
               )}
-              
+
               <Button
                 onClick={handleSaveSettings}
                 disabled={updateSettingsMutation.isPending}
@@ -154,28 +154,29 @@ export default function Settings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="google-email" className="text-xs uppercase tracking-widest text-muted-foreground">Verified Google Email</Label>
                     <Input
-                      id="username"
-                      value={user.username}
+                      id="google-email"
+                      value={user.googleEmail}
                       disabled
-                      data-testid="input-username"
+                      className="bg-muted/50 border-border"
+                      data-testid="input-google-email"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="secure-id" className="text-xs uppercase tracking-widest text-primary font-bold">QuMail Secure ID</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={user.email}
+                      id="secure-id"
+                      value={user.secureEmail}
                       disabled
-                      data-testid="input-email"
+                      className="bg-primary/5 border-primary/20 font-mono font-bold text-primary"
+                      data-testid="input-secure-email"
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Label>Email Provider</Label>
@@ -205,8 +206,8 @@ export default function Settings() {
               <CardContent className="space-y-6">
                 <div className="space-y-3">
                   <Label>Default Security Level</Label>
-                  <Select 
-                    value={defaultSecurityLevel} 
+                  <Select
+                    value={defaultSecurityLevel}
                     onValueChange={(value: SecurityLevel) => setDefaultSecurityLevel(value)}
                   >
                     <SelectTrigger data-testid="select-default-security">
@@ -237,13 +238,13 @@ export default function Settings() {
                         Automatically request new quantum keys when pool is low
                       </p>
                     </div>
-                    <Switch 
-                      checked={autoKeyRequest} 
+                    <Switch
+                      checked={autoKeyRequest}
                       onCheckedChange={setAutoKeyRequest}
                       data-testid="switch-auto-key"
                     />
                   </div>
-                  
+
                   {autoKeyRequest && (
                     <div className="ml-4 space-y-2">
                       <Label>Key Pool Threshold (MB)</Label>
@@ -270,8 +271,8 @@ export default function Settings() {
                       Log detailed security events and key usage patterns
                     </p>
                   </div>
-                  <Switch 
-                    checked={auditLogging} 
+                  <Switch
+                    checked={auditLogging}
                     onCheckedChange={setAuditLogging}
                     data-testid="switch-audit-logging"
                   />
@@ -295,8 +296,8 @@ export default function Settings() {
                       Receive email alerts for security events and key pool status
                     </p>
                   </div>
-                  <Switch 
-                    checked={emailNotifications} 
+                  <Switch
+                    checked={emailNotifications}
                     onCheckedChange={setEmailNotifications}
                     data-testid="switch-notifications"
                   />
@@ -312,7 +313,7 @@ export default function Settings() {
                     </span>
                   </div>
                   <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Your {providerInfo.name} account is connected and configured for quantum-secure messaging. 
+                    Your {providerInfo.name} account is connected and configured for quantum-secure messaging.
                     SMTP and IMAP settings are automatically managed.
                   </p>
                 </div>
@@ -329,7 +330,7 @@ export default function Settings() {
                     {auditFetching && <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>}
                   </div>
                   <Button
-                    variant="ghost" 
+                    variant="ghost"
                     size="sm"
                     onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/audit"] })}
                     data-testid="button-refresh-audit"
@@ -355,8 +356,8 @@ export default function Settings() {
                 ) : auditLogs && auditLogs.length > 0 ? (
                   <div className="space-y-3">
                     {auditLogs.slice(0, 8).map((log, index) => (
-                      <div 
-                        key={log.id} 
+                      <div
+                        key={log.id}
                         className={`flex items-start space-x-3 p-3 rounded-lg border border-border transition-all duration-500 ${auditFetching && index === 0 ? 'ring-2 ring-primary/30 bg-primary/5' : 'hover:bg-muted/50'}`}
                         data-testid={`audit-log-${log.id}`}
                       >

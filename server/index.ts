@@ -10,6 +10,7 @@ import { setupVite, serveStatic, log } from "./vite";
 declare module 'express-session' {
   interface SessionData {
     userId: string;
+    secureEmail: string;
   }
 }
 

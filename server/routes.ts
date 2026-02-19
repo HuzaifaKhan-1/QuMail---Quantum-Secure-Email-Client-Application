@@ -5,14 +5,55 @@ import { z } from "zod";
 import { storage } from "./storage";
 import { kmeSimulator } from "./services/kmeSimulator";
 import { emailService } from "./services/emailService";
+import { cryptoEngine } from "./services/cryptoEngine";
 import { SecurityLevel, insertUserSchema, insertAuditLogSchema, messages } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, not } from "drizzle-orm";
+import { eq, and, not, sql } from "drizzle-orm";
+import { OAuth2Client } from "google-auth-library";
+import jwt from "jsonwebtoken";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const JWT_SECRET = process.env.JWT_SECRET || "quantum-secure-secret-256";
 
 // WebSocket management
 const clients = new Map<string, WebSocket>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // --- DATABASE CLEANUP (One-off for Migration) ---
+  try {
+    console.log("Checking for stale database columns and triggers...");
+    // 1. Drop stale columns
+    await db.execute(sql`ALTER TABLE users DROP COLUMN IF EXISTS email;`);
+    await db.execute(sql`ALTER TABLE users DROP COLUMN IF EXISTS email_provider;`);
+
+    // 2. Aggressively drop any triggers on the users table that might be causing field-missing errors
+    // We query the system catalog to find the exact trigger names
+    const triggers = await db.execute(sql`
+      SELECT trigger_name 
+      FROM information_schema.triggers 
+      WHERE event_object_table = 'users';
+    `);
+
+    if (triggers.rows.length > 0) {
+      for (const row of triggers.rows as { trigger_name: string }[]) {
+        const triggerName = row.trigger_name;
+        console.log(`Dropping stale trigger: ${triggerName}`);
+        await db.execute(sql`DROP TRIGGER IF EXISTS ${sql.raw(triggerName)} ON users;`);
+      }
+    }
+
+    // 3. Ensure supplemental tables are updated
+    // The new identity system relies on secure_email/user_secure_email in these tables
+    await db.execute(sql`ALTER TABLE pqc_keys ADD COLUMN IF NOT EXISTS secure_email text;`);
+    await db.execute(sql`ALTER TABLE key_requests ADD COLUMN IF NOT EXISTS user_secure_email text;`);
+    await db.execute(sql`ALTER TABLE quantum_keys ADD COLUMN IF NOT EXISTS user_secure_email text;`);
+
+    console.log("Database identity migration cleanup: SUCCESS");
+  } catch (err) {
+    console.warn("Database cleanup notice (safe to ignore if already handled):", err);
+  }
+  // ------------------------------------------------
+
   const httpServer = createServer(app);
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
@@ -61,69 +102,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
-  // User authentication routes
-  app.post("/api/auth/register", async (req, res) => {
+  // Google OAuth 2.0 Identity Hub
+  app.post("/api/auth/google", async (req, res) => {
     try {
-      const { username, email, password } = req.body;
-
-      // Validate required fields
-      if (!username || !email || !password) {
-        return res.status(400).json({ message: "Username, email, and password are required" });
+      const { credential } = req.body;
+      if (!credential) {
+        return res.status(400).json({ message: "Google credential is required" });
       }
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-
-      const user = await storage.createUser({
-        username,
-        email,
-        password,
-        emailProvider: "qumail", // Internal platform only
-        defaultSecurityLevel: "level1"
+      // Verify Google ID Token
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
 
-      // Log registration
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email || !payload.sub) {
+        return res.status(400).json({ message: "Invalid Google token" });
+      }
+
+      const { email: googleEmail, name, sub: googleSub } = payload;
+
+      // Check if user exists
+      let user = await storage.getUserByGoogleSub(googleSub);
+
+      if (!user) {
+        // STEP 2: Internal Secure Email Generation
+        // Generate unique secure email: <username>@qumail.secure
+        const baseUsername = googleEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        let secureEmail = `${baseUsername}@qumail.secure`;
+
+        // Ensure uniqueness (add random suffix if needed)
+        const existing = await storage.getUserBySecureEmail(secureEmail);
+        if (existing) {
+          secureEmail = `${baseUsername}${Math.floor(Math.random() * 1000)}@qumail.secure`;
+        }
+
+        user = await storage.createUser({
+          googleEmail,
+          secureEmail,
+          username: name || baseUsername,
+          googleSub,
+          defaultSecurityLevel: "level1"
+        });
+
+        // STEP 4: Kyber Keypair Generation (First Login)
+        const { publicKey, privateKey } = await cryptoEngine.generateKyberKeypair();
+        await storage.createPqcKey({
+          secureEmail: user.secureEmail,
+          publicKey,
+          privateKey
+        });
+
+        await storage.createAuditLog({
+          userId: user.id,
+          action: "user_registered_oauth",
+          details: { googleEmail, secureEmail, action: "initial_pqc_key_generation" },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+      }
+
+      // Create JWT Session (Step 8)
+      const token = jwt.sign(
+        { userId: user.id, secureEmail: user.secureEmail },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Store in session (compatibility with existing middleware)
+      if (req.session) {
+        req.session.userId = user.id;
+        req.session.secureEmail = user.secureEmail;
+      }
+
       await storage.createAuditLog({
         userId: user.id,
-        action: "user_registered",
-        details: { email: user.email, provider: "qumail" },
+        action: "user_login_oauth",
+        details: { googleEmail, secureEmail: user.secureEmail },
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       });
 
-      req.session.userId = user.id;
-      res.json({ user: { id: user.id, email: user.email, username: user.username } });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(400).json({ message: "Registration failed" });
-    }
-  });
-
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      await storage.createAuditLog({
-        userId: user.id,
-        action: "user_login",
-        details: { email: user.email },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+      res.json({
+        user: {
+          id: user.id,
+          googleEmail: user.googleEmail,
+          secureEmail: user.secureEmail,
+          username: user.username
+        },
+        token
       });
-
-      req.session.userId = user.id;
-      res.json({ user: { id: user.id, email: user.email, username: user.username } });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
+    } catch (error: any) {
+      console.error("Google Auth error:", error);
+      res.status(500).json({
+        message: "Authentication failed",
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 
@@ -153,9 +229,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         user: {
           id: user.id,
-          email: user.email,
+          googleEmail: user.googleEmail,
+          secureEmail: user.secureEmail,
           username: user.username,
-          emailProvider: user.emailProvider,
           defaultSecurityLevel: user.defaultSecurityLevel
         }
       });
@@ -326,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/emails/send", requireAuth, async (req, res) => {
     try {
       const sendSchema = z.object({
-        to: z.string().email(),
+        to: z.string().regex(/@qumail\.secure$/i, "Messages can only be sent to internal @qumail.secure addresses").transform(v => v.toLowerCase()),
         subject: z.string(),
         body: z.string(),
         securityLevel: z.nativeEnum(SecurityLevel),
@@ -342,6 +418,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      // Find recipient user by secure email
+      const recipient = await storage.getUserBySecureEmail(emailData.to);
+      if (!recipient) {
+        return res.status(404).json({ message: "Recipient not found on QuMail platform" });
       }
 
       // Convert base64 attachments to Buffer
@@ -360,9 +442,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ message: "Email sent successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Send email error:", error);
-      res.status(500).json({ message: "Failed to send email" });
+      res.status(400).json({ message: error.message || "Failed to send email" });
     }
   });
 

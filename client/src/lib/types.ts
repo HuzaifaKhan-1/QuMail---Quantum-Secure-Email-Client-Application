@@ -1,8 +1,9 @@
 export interface User {
   id: string;
-  email: string;
+  googleEmail: string;
+  secureEmail: string;
   username: string;
-  emailProvider?: string;
+  googleSub: string;
   defaultSecurityLevel?: string;
 }
 
@@ -12,6 +13,8 @@ export interface Message {
   messageId: string;
   from: string;
   to: string;
+  senderSecureEmail: string;
+  receiverSecureEmail: string;
   subject: string;
   body?: string;
   encryptedBody?: string;
@@ -76,8 +79,9 @@ export interface AuditLog {
 export enum SecurityLevel {
   LEVEL1_OTP = "level1",
   LEVEL2_AES = "level2",
-  LEVEL3_PQC = "level3", 
-  LEVEL4_PLAIN = "level4"
+  LEVEL3_PQC = "level3",
+  LEVEL4_PLAIN = "level4",
+  LEVEL5_ATTACHMENTS = "level5"
 }
 
 export interface SendEmailRequest {

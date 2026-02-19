@@ -7,13 +7,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Shield, 
-  Inbox, 
-  Send, 
-  Key, 
-  Trash, 
-  Settings, 
+import {
+  Shield,
+  Inbox,
+  Send,
+  Key,
+  Trash,
+  Settings,
   ShieldCheck,
   LogOut
 } from "lucide-react";
@@ -55,11 +55,11 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
   });
 
   const navItems = [
-    { 
-      path: "/inbox", 
-      icon: Inbox, 
-      label: "Inbox", 
-      badge: unreadCount > 0 ? unreadCount.toString() : undefined 
+    {
+      path: "/inbox",
+      icon: Inbox,
+      label: "Inbox",
+      badge: unreadCount > 0 ? unreadCount.toString() : undefined
     },
     { path: "/sent", icon: Send, label: "Sent" },
     { path: "/compose", icon: Send, label: "Compose" },
@@ -104,17 +104,20 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
       {/* User Info */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center space-x-3 mb-3">
-          <Avatar>
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {user.username?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+          <Avatar className="h-9 w-9 border border-primary/20">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+              {user.username?.charAt(0).toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate" data-testid="text-username">
-              {user.username || user.email.split('@')[0]}
+            <p className="text-sm font-bold text-foreground truncate" data-testid="text-username">
+              {user.username}
             </p>
-            <p className="text-xs text-muted-foreground truncate" data-testid="text-email">
-              {user.email}
+            <p className="text-[10px] text-primary font-mono truncate font-bold" data-testid="text-secure-email">
+              {user.secureEmail}
+            </p>
+            <p className="text-[9px] text-muted-foreground truncate opacity-70" data-testid="text-google-email">
+              {user.googleEmail}
             </p>
           </div>
         </div>
@@ -130,7 +133,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
             </span>
           </div>
           <div className="w-full bg-green-200 dark:bg-green-900 rounded-full h-1.5">
-            <div 
+            <div
               className={`${securityStatus.color} h-1.5 rounded-full transition-all`}
               style={{ width: `${100 - (keyPoolStats?.utilizationPercent || 0)}%` }}
             ></div>
@@ -160,8 +163,8 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
                 <Icon className="h-4 w-4 mr-3" />
                 <span className="text-sm font-medium">{item.label}</span>
                 {item.badge && (
-                  <Badge 
-                    variant={isActive ? "secondary" : "default"} 
+                  <Badge
+                    variant={isActive ? "secondary" : "default"}
                     className="ml-auto"
                     data-testid="badge-unread-count"
                   >
@@ -230,8 +233,8 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
               {keyPoolStats ? `${keyPoolStats.remainingMB} MB` : "Loading..."}
             </span>
           </div>
-          <Progress 
-            value={keyPoolStats ? 100 - keyPoolStats.utilizationPercent : 0} 
+          <Progress
+            value={keyPoolStats ? 100 - keyPoolStats.utilizationPercent : 0}
             className="h-2"
             data-testid="progress-key-usage"
           />

@@ -21,17 +21,18 @@ export class CryptoEngine {
   async encrypt(
     data: string | Buffer,
     securityLevel: SecurityLevel,
-    recipient?: string
+    recipient?: string,
+    senderSecureEmail?: string
   ): Promise<EncryptionResult> {
     const dataBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf8');
 
     switch (securityLevel) {
       case SecurityLevel.LEVEL1_OTP:
-        return this.encryptOTP(dataBuffer, recipient);
+        return this.encryptOTP(dataBuffer, recipient, senderSecureEmail);
       case SecurityLevel.LEVEL2_AES:
-        return this.encryptAES(dataBuffer, recipient);
+        return this.encryptAES(dataBuffer, recipient, senderSecureEmail);
       case SecurityLevel.LEVEL3_PQC:
-        return this.encryptPQC(dataBuffer, recipient);
+        return this.encryptPQC(dataBuffer, recipient, senderSecureEmail);
       case SecurityLevel.LEVEL4_PLAIN:
         return this.encryptPlain(dataBuffer);
       default:
@@ -86,12 +87,13 @@ export class CryptoEngine {
   /**
    * Level 1: One-Time Pad encryption using quantum keys
    */
-  private async encryptOTP(data: Buffer, recipient?: string): Promise<EncryptionResult> {
+  private async encryptOTP(data: Buffer, recipient?: string, senderSecureEmail?: string): Promise<EncryptionResult> {
     // Request quantum key from KME - include 32 bytes for HMAC
     const keyRequest = {
       request_id: randomBytes(16).toString('hex'),
       key_length_bits: (data.length + 32) * 8,
-      recipient
+      recipient,
+      userSecureEmail: senderSecureEmail
     };
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
@@ -143,12 +145,13 @@ export class CryptoEngine {
   /**
    * Level 2: AES-GCM with quantum-seeded keys
    */
-  private async encryptAES(data: Buffer, recipient?: string): Promise<EncryptionResult> {
+  private async encryptAES(data: Buffer, recipient?: string, senderSecureEmail?: string): Promise<EncryptionResult> {
     // Request smaller quantum key for seeding
     const keyRequest = {
       request_id: randomBytes(16).toString('hex'),
       key_length_bits: 256, // 32 bytes for seed
-      recipient
+      recipient,
+      userSecureEmail: senderSecureEmail
     };
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
@@ -188,12 +191,13 @@ export class CryptoEngine {
   /**
    * Level 3: Post-Quantum Cryptography hybrid (CRYSTALS-Kyber simulation)
    */
-  private async encryptPQC(data: Buffer, recipient?: string): Promise<EncryptionResult> {
+  private async encryptPQC(data: Buffer, recipient?: string, senderSecureEmail?: string): Promise<EncryptionResult> {
     // Simulate CRYSTALS-Kyber KEM with quantum-seeded keys
     const keyRequest = {
       request_id: randomBytes(16).toString('hex'),
       key_length_bits: 768, // Kyber-768 equivalent
-      recipient
+      recipient,
+      userSecureEmail: senderSecureEmail
     };
 
     const keyResponse = await kmeSimulator.requestKey(keyRequest);
@@ -447,6 +451,17 @@ export class CryptoEngine {
     // Match the stable seed-based derivation
     const sharedSecret = this.hkdf(seed, 32, 'Kyber-SharedSecret');
     return { sharedSecret };
+  }
+
+  /**
+   * Generate a Kyber public/private keypair (simulated)
+   */
+  async generateKyberKeypair(): Promise<{ publicKey: string; privateKey: string }> {
+    const seed = randomBytes(32);
+    const publicKey = this.hkdf(seed, 32, 'Kyber-PublicKey').toString('base64');
+    const privateKey = this.hkdf(seed, 32, 'Kyber-PrivateKey').toString('base64');
+
+    return { publicKey, privateKey };
   }
 }
 

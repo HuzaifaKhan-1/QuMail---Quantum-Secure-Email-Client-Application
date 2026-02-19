@@ -2,6 +2,7 @@ import { Route, Switch, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { api } from "@/lib/api";
 import Login from "@/pages/login";
 import Inbox from "@/pages/inbox";
@@ -12,6 +13,13 @@ import Audit from "@/pages/audit";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
+
+// Use a placeholder client ID if not provided in environment
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+if (!GOOGLE_CLIENT_ID) {
+  console.warn("VITE_GOOGLE_CLIENT_ID is not defined in the environment. Google Login will fail.");
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [location, setLocation] = useLocation();
@@ -81,12 +89,14 @@ function RedirectToLogin() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background">
-        <Router />
-        <Toaster />
-      </div>
-    </QueryClientProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-background">
+          <Router />
+          <Toaster />
+        </div>
+      </QueryClientProvider>
+    </GoogleOAuthProvider>
   );
 }
 

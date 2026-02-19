@@ -31,7 +31,8 @@ export class EmailService {
         const bodyEncryption = await cryptoEngine.encrypt(
           options.body,
           options.securityLevel,
-          options.to
+          options.to,
+          user.secureEmail
         );
 
         encryptedBody = bodyEncryption.encryptedData;
@@ -44,7 +45,8 @@ export class EmailService {
             const encryptedAttachment = await cryptoEngine.encrypt(
               attachment.content,
               options.securityLevel,
-              options.to
+              options.to,
+              user.secureEmail
             );
 
             encryptedAttachments.push({
@@ -60,7 +62,7 @@ export class EmailService {
       }
 
       console.log(`Sending internal QuMail message:`, {
-        from: user.email,
+        from: user.secureEmail,
         to: options.to,
         subject: options.subject,
         securityLevel: options.securityLevel,
@@ -68,8 +70,8 @@ export class EmailService {
         keyId: keyId
       });
 
-      // Find recipient user
-      const recipient = await storage.getUserByEmail(options.to);
+      // Find recipient user by secureEmail
+      const recipient = await storage.getUserBySecureEmail(options.to);
       if (!recipient) {
         throw new Error(`Recipient ${options.to} not found on QuMail platform`);
       }
@@ -80,8 +82,10 @@ export class EmailService {
       await storage.createMessage({
         userId: user.id,
         messageId: commonMessageId,
-        from: user.email,
+        from: user.secureEmail,
         to: options.to,
+        senderSecureEmail: user.secureEmail,
+        receiverSecureEmail: options.to,
         subject: options.subject,
         body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
         encryptedBody: encryptedBody,
@@ -106,8 +110,10 @@ export class EmailService {
         await storage.createMessage({
           userId: recipient.id,
           messageId: commonMessageId,
-          from: user.email,
+          from: user.secureEmail,
           to: options.to,
+          senderSecureEmail: user.secureEmail,
+          receiverSecureEmail: options.to,
           subject: options.subject,
           body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
           encryptedBody: encryptedBody,
@@ -148,7 +154,7 @@ export class EmailService {
           userId: recipient.id,
           action: "email_received",
           details: {
-            from: user.email,
+            from: user.secureEmail,
             subject: options.subject,
             securityLevel: options.securityLevel,
             keyId
