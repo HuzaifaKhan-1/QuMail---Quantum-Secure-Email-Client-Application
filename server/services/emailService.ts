@@ -32,7 +32,7 @@ export class EmailService {
           options.body,
           options.securityLevel,
           options.to,
-          user.secureEmail
+          user.userSecureEmail
         );
 
         encryptedBody = bodyEncryption.encryptedData;
@@ -46,7 +46,7 @@ export class EmailService {
               attachment.content,
               options.securityLevel,
               options.to,
-              user.secureEmail
+              user.userSecureEmail
             );
 
             encryptedAttachments.push({
@@ -62,7 +62,7 @@ export class EmailService {
       }
 
       console.log(`Sending internal QuMail message:`, {
-        from: user.secureEmail,
+        from: user.userSecureEmail,
         to: options.to,
         subject: options.subject,
         securityLevel: options.securityLevel,
@@ -82,9 +82,9 @@ export class EmailService {
       await storage.createMessage({
         userId: user.id,
         messageId: commonMessageId,
-        from: user.secureEmail,
+        from: user.userSecureEmail,
         to: options.to,
-        senderSecureEmail: user.secureEmail,
+        senderSecureEmail: user.userSecureEmail,
         receiverSecureEmail: options.to,
         subject: options.subject,
         body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
@@ -110,9 +110,9 @@ export class EmailService {
         await storage.createMessage({
           userId: recipient.id,
           messageId: commonMessageId,
-          from: user.secureEmail,
+          from: user.userSecureEmail,
           to: options.to,
-          senderSecureEmail: user.secureEmail,
+          senderSecureEmail: user.userSecureEmail,
           receiverSecureEmail: options.to,
           subject: options.subject,
           body: options.securityLevel === SecurityLevel.LEVEL4_PLAIN ? options.body : null,
@@ -154,7 +154,7 @@ export class EmailService {
           userId: recipient.id,
           action: "email_received",
           details: {
-            from: user.secureEmail,
+            from: user.userSecureEmail,
             subject: options.subject,
             securityLevel: options.securityLevel,
             keyId

@@ -49,7 +49,7 @@ export interface IStorage {
   updateQuantumKeyUsage(keyId: string, consumedBytes: number): Promise<boolean>;
 
   // PQC key methods
-  getPqcKey(secureEmail: string): Promise<PqcKey | undefined>;
+  getPqcKey(userSecureEmail: string): Promise<PqcKey | undefined>;
   createPqcKey(key: InsertPqcKey): Promise<PqcKey>;
 
   // Audit log methods
@@ -75,7 +75,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserBySecureEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.secureEmail, email));
+    const [user] = await db.select().from(users).where(eq(users.userSecureEmail, email));
     return user || undefined;
   }
 
@@ -216,8 +216,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // PQC key methods
-  async getPqcKey(secureEmail: string): Promise<PqcKey | undefined> {
-    const [key] = await db.select().from(pqcKeys).where(eq(pqcKeys.secureEmail, secureEmail));
+  async getPqcKey(userSecureEmail: string): Promise<PqcKey | undefined> {
+    const [key] = await db.select().from(pqcKeys).where(eq(pqcKeys.userSecureEmail, userSecureEmail));
     return key || undefined;
   }
 

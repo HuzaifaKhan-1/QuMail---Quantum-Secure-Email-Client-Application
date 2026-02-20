@@ -12,6 +12,20 @@ export const api = {
     return data;
   },
 
+  async login(userSecureEmail: string, password: string) {
+    const response = await apiRequest("POST", "/api/auth/login", { userSecureEmail, password });
+    const data = await response.json();
+    if (data.token) {
+      localStorage.setItem("qumail_token", data.token);
+    }
+    return data;
+  },
+
+  async setPassword(password: string) {
+    const response = await apiRequest("POST", "/api/auth/set-password", { password });
+    return response.json();
+  },
+
   async logout() {
     const response = await apiRequest("POST", "/api/auth/logout");
     return response.json();

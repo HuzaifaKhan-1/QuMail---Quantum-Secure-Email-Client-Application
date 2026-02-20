@@ -11,9 +11,28 @@ import { db } from "./db";
 import { eq, and, not, sql } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
+import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || "quantum-secure-secret-256";
+
+// Security helper: Password hashing without dependencies
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const derivedKey = scryptSync(password, salt, 64);
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
+
+function verifyPassword(password: string, hash: string): boolean {
+  try {
+    const [salt, key] = hash.split(":");
+    const keyBuffer = Buffer.from(key, "hex");
+    const derivedKey = scryptSync(password, salt, 64);
+    return timingSafeEqual(keyBuffer, derivedKey);
+  } catch (e) {
+    return false;
+  }
+}
 
 // WebSocket management
 const clients = new Map<string, WebSocket>();
@@ -21,13 +40,67 @@ const clients = new Map<string, WebSocket>();
 export async function registerRoutes(app: Express): Promise<Server> {
   // --- DATABASE CLEANUP (One-off for Migration) ---
   try {
-    console.log("Checking for stale database columns and triggers...");
-    // 1. Drop stale columns
+    console.log("Checking for hybrid authentication database columns...");
+    // 1. Check for column existence
+    const existingColumns = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns WHERE table_name = 'users';
+    `);
+    const columnNames = (existingColumns.rows as { column_name: string }[]).map(r => r.column_name);
+
+    // 2. Handle secure_email -> user_secure_email transition
+    if (columnNames.includes('secure_email')) {
+      if (columnNames.includes('user_secure_email')) {
+        console.log("Both secure_email and user_secure_email exist. Dropping stale secure_email...");
+        await db.execute(sql`ALTER TABLE users DROP COLUMN secure_email;`);
+      } else {
+        console.log("Renaming secure_email to user_secure_email...");
+        await db.execute(sql`ALTER TABLE users RENAME COLUMN secure_email TO user_secure_email;`);
+        columnNames.push('user_secure_email');
+      }
+    }
+
+    // 3. Ensure all new columns exist
+    const newColumns = [
+      { name: 'google_email', type: 'TEXT' },
+      { name: 'google_sub', type: 'TEXT' },
+      { name: 'user_secure_email', type: 'TEXT' },
+      { name: 'password_hash', type: 'TEXT' },
+      { name: 'is_verified', type: 'BOOLEAN DEFAULT true' },
+      { name: 'auth_provider', type: 'TEXT DEFAULT \'google\'' }
+    ];
+
+    for (const col of newColumns) {
+      if (!columnNames.includes(col.name)) {
+        console.log(`Adding column: ${col.name}`);
+        await db.execute(sql.raw(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type};`));
+      }
+    }
+
+    // 3. Drop stale columns
     await db.execute(sql`ALTER TABLE users DROP COLUMN IF EXISTS email;`);
     await db.execute(sql`ALTER TABLE users DROP COLUMN IF EXISTS email_provider;`);
 
-    // 2. Aggressively drop any triggers on the users table that might be causing field-missing errors
-    // We query the system catalog to find the exact trigger names
+    // 4. Update Supplemental Tables
+    const tablesToUpdate = ['pqc_keys', 'key_requests', 'quantum_keys'];
+    for (const table of tablesToUpdate) {
+      const tableCols = await db.execute(sql.raw(`SELECT column_name FROM information_schema.columns WHERE table_name = '${table}';`));
+      const tableColNames = (tableCols.rows as { column_name: string }[]).map(r => r.column_name);
+
+      if (tableColNames.includes('secure_email')) {
+        if (tableColNames.includes('user_secure_email')) {
+          await db.execute(sql.raw(`ALTER TABLE ${table} DROP COLUMN secure_email;`));
+        } else {
+          await db.execute(sql.raw(`ALTER TABLE ${table} RENAME COLUMN secure_email TO user_secure_email;`));
+          tableColNames.push('user_secure_email');
+        }
+      }
+
+      if (!tableColNames.includes('user_secure_email')) {
+        await db.execute(sql.raw(`ALTER TABLE ${table} ADD COLUMN user_secure_email TEXT;`));
+      }
+    }
+
+    // 5. Aggressively drop any triggers on the users table that might be causing field-missing errors
     const triggers = await db.execute(sql`
       SELECT trigger_name 
       FROM information_schema.triggers 
@@ -42,15 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    // 3. Ensure supplemental tables are updated
-    // The new identity system relies on secure_email/user_secure_email in these tables
-    await db.execute(sql`ALTER TABLE pqc_keys ADD COLUMN IF NOT EXISTS secure_email text;`);
-    await db.execute(sql`ALTER TABLE key_requests ADD COLUMN IF NOT EXISTS user_secure_email text;`);
-    await db.execute(sql`ALTER TABLE quantum_keys ADD COLUMN IF NOT EXISTS user_secure_email text;`);
-
-    console.log("Database identity migration cleanup: SUCCESS");
+    console.log("Database identity migration: SUCCESS");
   } catch (err) {
-    console.warn("Database cleanup notice (safe to ignore if already handled):", err);
+    console.warn("Database migration notice:", err);
   }
   // ------------------------------------------------
 
@@ -102,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
-  // Google OAuth 2.0 Identity Hub
+  // Hybrid Authentication Identity Hub (Google OAuth for Verification)
   app.post("/api/auth/google", async (req, res) => {
     try {
       const { credential } = req.body;
@@ -128,28 +195,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         // STEP 2: Internal Secure Email Generation
-        // Generate unique secure email: <username>@qumail.secure
         const baseUsername = googleEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-        let secureEmail = `${baseUsername}@qumail.secure`;
+        let userSecureEmail = `${baseUsername}@qumail.secure`;
 
-        // Ensure uniqueness (add random suffix if needed)
-        const existing = await storage.getUserBySecureEmail(secureEmail);
+        // Ensure uniqueness
+        const existing = await storage.getUserBySecureEmail(userSecureEmail);
         if (existing) {
-          secureEmail = `${baseUsername}${Math.floor(Math.random() * 1000)}@qumail.secure`;
+          userSecureEmail = `${baseUsername}${Math.floor(Math.random() * 1000)}@qumail.secure`;
         }
 
         user = await storage.createUser({
           googleEmail,
-          secureEmail,
+          userSecureEmail,
           username: name || baseUsername,
           googleSub,
+          authProvider: 'google',
+          isVerified: true,
           defaultSecurityLevel: "level1"
         });
 
         // STEP 4: Kyber Keypair Generation (First Login)
         const { publicKey, privateKey } = await cryptoEngine.generateKyberKeypair();
         await storage.createPqcKey({
-          secureEmail: user.secureEmail,
+          userSecureEmail: user.userSecureEmail,
           publicKey,
           privateKey
         });
@@ -157,71 +225,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createAuditLog({
           userId: user.id,
           action: "user_registered_oauth",
-          details: { googleEmail, secureEmail, action: "initial_pqc_key_generation" },
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent')
+          details: { googleEmail, userSecureEmail: user.userSecureEmail, action: "initial_pqc_key_generation" },
+          ipAddress: req.ip as string || "0.0.0.0",
+          userAgent: req.get('User-Agent') || "unknown"
         });
       }
 
-      // Create JWT Session (Step 8)
+      // Generate JWT Session
       const token = jwt.sign(
-        { userId: user.id, secureEmail: user.secureEmail },
+        {
+          userId: user.id,
+          userSecureEmail: user.userSecureEmail,
+          googleEmail: user.googleEmail
+        },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
 
-      // Store in session (compatibility with existing middleware)
+      // Store in session for compatibility
       if (req.session) {
         req.session.userId = user.id;
-        req.session.secureEmail = user.secureEmail;
+        req.session.userSecureEmail = user.userSecureEmail;
       }
 
       await storage.createAuditLog({
         userId: user.id,
         action: "user_login_oauth",
-        details: { googleEmail, secureEmail: user.secureEmail },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+        details: { googleEmail, userSecureEmail: user.userSecureEmail },
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
       });
 
       res.json({
         user: {
           id: user.id,
           googleEmail: user.googleEmail,
-          secureEmail: user.secureEmail,
-          username: user.username
+          userSecureEmail: user.userSecureEmail,
+          username: user.username,
+          needsPassword: !user.passwordHash
         },
         token
       });
     } catch (error: any) {
       console.error("Google Auth error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
       res.status(500).json({
         message: "Authentication failed",
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: error.message
       });
     }
   });
 
+  // New Route: Set Secure Password
+  app.post("/api/auth/set-password", requireAuth, async (req, res) => {
+    try {
+      const { password } = z.object({ password: z.string().min(8) }).parse(req.body);
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const passwordHash = hashPassword(password);
+      await storage.updateUser(userId, { passwordHash });
+
+      await storage.createAuditLog({
+        userId: userId as string,
+        action: "password_set",
+        details: { userSecureEmail: user.userSecureEmail },
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
+      });
+
+      res.json({ message: "Password set successfully" });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Password does not meet security requirements" });
+      }
+      res.status(400).json({ message: error.message || "Failed to set password" });
+    }
+  });
+
+  // New Route: Password-based Login (Daily Login)
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { userSecureEmail, password } = z.object({
+        userSecureEmail: z.string().regex(/@qumail\.secure$/i),
+        password: z.string()
+      }).parse(req.body);
+
+      const user = await storage.getUserBySecureEmail(userSecureEmail.toLowerCase());
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const isValid = verifyPassword(password, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Generate JWT Session
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          userSecureEmail: user.userSecureEmail,
+          googleEmail: user.googleEmail
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      if (req.session) {
+        req.session.userId = user.id;
+        req.session.userSecureEmail = user.userSecureEmail;
+      }
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "user_login_password",
+        details: { userSecureEmail: user.userSecureEmail },
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
+      });
+
+      res.json({
+        user: {
+          id: user.id,
+          googleEmail: user.googleEmail,
+          userSecureEmail: user.userSecureEmail,
+          username: user.username
+        },
+        token
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: error.errors.map(e => ({ path: e.path, message: e.message }))
+        });
+      }
+      res.status(400).json({ message: error.message || "Login failed" });
+    }
+  });
+
   app.post("/api/auth/logout", requireAuth, async (req, res) => {
-    const userId = req.session.userId;
+    const userId = req.session?.userId as string;
 
     await storage.createAuditLog({
       userId,
       action: "user_logout",
       details: {},
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      ipAddress: req.ip as string || "0.0.0.0",
+      userAgent: req.get('User-Agent') || "unknown"
     });
 
-    req.session.destroy(() => {
+    req.session?.destroy(() => {
       res.json({ message: "Logged out successfully" });
     });
   });
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session.userId as string);
+      const user = await storage.getUser(req.session?.userId as string);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -230,9 +397,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: {
           id: user.id,
           googleEmail: user.googleEmail,
-          secureEmail: user.secureEmail,
+          userSecureEmail: user.userSecureEmail,
           username: user.username,
-          defaultSecurityLevel: user.defaultSecurityLevel
+          defaultSecurityLevel: user.defaultSecurityLevel,
+          needsPassword: !user.passwordHash
         }
       });
     } catch (error) {
@@ -279,8 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { keyId } = req.params;
       const ackSchema = z.object({
-        consumed_bytes: z.number().positive(),
-        message_id: z.string().optional()
+        status: z.enum(["consumed", "expired"])
       });
 
       const ack = ackSchema.parse(req.body);
@@ -342,17 +509,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const keyRequest = {
         request_id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         key_length_bits: keyLength * 8,
-        recipient
+        recipient,
+        userSecureEmail: req.session?.userSecureEmail
       };
 
       const response = await kmeSimulator.requestKey(keyRequest);
 
       await storage.createAuditLog({
-        userId: req.session.userId,
+        userId: req.session?.userId as string,
         action: "key_requested",
-        details: { keyId: response.key_id, keyLength },
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+        details: { keyId: response.key_id, keyLength, userSecureEmail: req.session?.userSecureEmail },
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
       });
 
       res.json(response);
@@ -366,7 +534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/emails", requireAuth, async (req, res) => {
     try {
       const folder = req.query.folder as string || "inbox";
-      const messages = await storage.getMessagesByUser(req.session.userId as string, folder);
+      const messages = await storage.getMessagesByUser(req.session?.userId as string, folder);
 
       res.json(messages);
     } catch (error) {
@@ -380,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId } = req.params;
       const message = await storage.getMessage(messageId);
 
-      if (!message || message.userId !== (req.session.userId as string)) {
+      if (!message || message.userId !== (req.session?.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -414,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const emailData = sendSchema.parse(req.body);
-      const user = await storage.getUser(req.session.userId as string);
+      const user = await storage.getUser(req.session?.userId as string);
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -454,7 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { body } = z.object({ body: z.string() }).parse(req.body);
 
       const message = await storage.getMessage(messageId);
-      if (!message || message.userId !== (req.session.userId as string)) {
+      if (!message || message.userId !== (req.session?.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -474,16 +642,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 
-      // Re-encrypt body for both sender and receiver using the standard encryption engine
-      // This ensures Level 1, 2, and 3 are handled correctly with fresh keys/metadata
-      const { cryptoEngine } = await import("./services/cryptoEngine");
+      // Re-encrypt body
       const encryptionResult = await cryptoEngine.encrypt(
         body,
         message.securityLevel as SecurityLevel,
-        message.to
+        message.to,
+        message.senderSecureEmail as string
       );
-
-      console.log(`[EDIT DEBUG] Re-encrypted Level 1 message: dataLength=${encryptionResult.metadata.dataLength}, keyId=${encryptionResult.keyId}`);
 
       const updated = await storage.updateMessage(messageId, {
         body: message.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
@@ -493,20 +658,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         editedAt: new Date()
       });
 
-      // Update the receiver's copy as well
+      // Synchronize with recipient
       const receiverMessages = await db.select().from(messages).where(
         and(
-          eq(messages.messageId, message.messageId),
+          eq(messages.messageId, message.messageId as string),
           eq(messages.folder, "inbox")
         )
       );
 
-      console.log(`[SYNC DEBUG] Found ${receiverMessages.length} receiver messages for sync`);
-
       for (const msg of receiverMessages) {
-        console.log(`[SYNC DEBUG] Updating message ${msg.id} for user ${msg.userId}`);
-
-        // Update with synchronized content and metadata
         await db.update(messages)
           .set({
             body: msg.securityLevel === SecurityLevel.LEVEL4_PLAIN ? body : null,
@@ -517,15 +677,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(messages.id, msg.id));
 
-        console.log(`[SYNC DEBUG] Database update complete for ${msg.id}`);
-
-        // Notify user via WebSocket for instant update
         notifyUser(msg.userId, {
           type: 'EMAIL_UPDATED',
           messageId: msg.id,
           folder: msg.folder
         });
-        console.log(`[SYNC DEBUG] WS notification sent to user ${msg.userId}`);
       }
 
       res.json(updated);
@@ -539,13 +695,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/emails/:messageId/decrypt", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
-      const result = await emailService.decryptEmail(messageId, req.session.userId as string);
+      const result = await emailService.decryptEmail(messageId, req.session?.userId as string);
 
       if (!result || !result.success) {
         return res.status(400).json({ message: "Failed to decrypt email" });
       }
 
-      // Plaintext is returned in response but NEVER persisted to DB for secure levels
       res.json({
         message: "Email decrypted successfully",
         success: true,
@@ -562,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId } = req.params;
       const message = await storage.getMessage(messageId);
 
-      if (!message || message.userId !== (req.session.userId as string)) {
+      if (!message || message.userId !== (req.session?.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -573,9 +728,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         await storage.createAuditLog({
-          userId: req.session.userId as string,
+          userId: req.session?.userId as string,
           action: "email_content_purged",
-          details: { messageId }
+          details: { messageId },
+          ipAddress: req.ip as string || "0.0.0.0",
+          userAgent: req.get('User-Agent') || "unknown"
         });
       }
 
@@ -591,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { messageId, attachmentIndex } = req.params;
       const message = await storage.getMessage(messageId);
 
-      if (!message || message.userId !== (req.session.userId as string)) {
+      if (!message || message.userId !== (req.session?.userId as string)) {
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -606,7 +763,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filename = encryptedAttachment.filename;
           contentType = encryptedAttachment.contentType;
 
-          const { cryptoEngine } = await import("./services/cryptoEngine");
           const decryptionResult = await cryptoEngine.decrypt(
             encryptedAttachment.encryptedData,
             encryptedAttachment.metadata
@@ -630,36 +786,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contentType = attachment.contentType;
 
         if (attachment.content) {
-          // If content is stored as base64 string, decode it
           if (typeof attachment.content === 'string') {
             fileContent = Buffer.from(attachment.content, 'base64');
           } else {
-            // If content is already a Buffer
             fileContent = attachment.content;
           }
         }
       }
 
       if (!fileContent) {
-        // Create proper file content based on type (last resort/fallback)
-        if (contentType.startsWith('image/')) {
-          if (contentType === 'image/jpeg' || contentType === 'image/jpg') {
-            fileContent = Buffer.from('/9j/4AAQSkZJRGABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==', 'base64');
-          } else {
-            fileContent = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-          }
-        } else {
-          fileContent = Buffer.from(`Sample file content for: ${filename}\nFile type: ${contentType}`, 'utf-8');
-        }
+        fileContent = Buffer.from(`Sample file content for: ${filename}\nFile type: ${contentType}`, 'utf-8');
       }
 
-      // Set proper headers for file download
-      const encodedFilename = encodeURIComponent(filename);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Length', fileContent.length);
-      res.setHeader('Cache-Control', 'no-cache');
-
       res.send(fileContent);
     } catch (error) {
       console.error("Download attachment error:", error);
@@ -667,14 +808,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-  // Audit logs
   app.get("/api/audit", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
-      const logs = await storage.getAuditLogs(req.session.userId, limit);
-
+      const logs = await storage.getAuditLogs(req.session?.userId as string, limit);
       res.json(logs);
     } catch (error) {
       console.error("Get audit logs error:", error);
@@ -682,7 +819,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User settings
   app.put("/api/user/settings", requireAuth, async (req, res) => {
     try {
       const settingsSchema = z.object({
@@ -693,17 +829,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const settings = settingsSchema.parse(req.body);
 
-      const updatedUser = await storage.updateUser(req.session.userId as string, settings);
+      const updatedUser = await storage.updateUser(req.session?.userId as string, settings);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
 
       await storage.createAuditLog({
-        userId: req.session.userId,
+        userId: req.session?.userId as string,
         action: "settings_updated",
         details: settings,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
       });
 
       res.json({ message: "Settings updated successfully" });

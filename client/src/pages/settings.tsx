@@ -169,7 +169,7 @@ export default function Settings() {
                     <Label htmlFor="secure-id" className="text-xs uppercase tracking-widest text-primary font-bold">QuMail Secure ID</Label>
                     <Input
                       id="secure-id"
-                      value={user.secureEmail}
+                      value={user.userSecureEmail}
                       disabled
                       className="bg-primary/5 border-primary/20 font-mono font-bold text-primary"
                       data-testid="input-secure-email"

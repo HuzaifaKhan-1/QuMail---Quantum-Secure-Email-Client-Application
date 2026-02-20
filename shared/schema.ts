@@ -5,10 +5,13 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  googleEmail: text("google_email").notNull().unique(),
-  secureEmail: text("secure_email").notNull().unique(), // <username>@qumail.secure
-  username: text("username").notNull(), // Display name from Google
-  googleSub: text("google_sub").notNull().unique(), // Google Subject ID
+  googleEmail: text("google_email"),
+  userSecureEmail: text("user_secure_email").notNull().unique(), // <username>@qumail.secure
+  username: text("username").notNull(), // Display name from Google or custom
+  googleSub: text("google_sub").unique(), // Google Subject ID
+  passwordHash: text("password_hash"),
+  isVerified: boolean("is_verified").default(true),
+  authProvider: text("auth_provider").default("google"),
   defaultSecurityLevel: text("default_security_level").default("level1"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -54,7 +57,7 @@ export const quantumKeys = pgTable("quantum_keys", {
 
 export const pqcKeys = pgTable("pqc_keys", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  secureEmail: text("secure_email").notNull().unique(),
+  userSecureEmail: text("user_secure_email").notNull().unique(),
   publicKey: text("public_key").notNull(),
   privateKey: text("private_key").notNull(),
   createdAt: timestamp("created_at").defaultNow(),

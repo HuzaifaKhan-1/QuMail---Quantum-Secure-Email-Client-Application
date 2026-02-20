@@ -1,10 +1,11 @@
 export interface User {
   id: string;
   googleEmail: string;
-  secureEmail: string;
+  userSecureEmail: string;
   username: string;
   googleSub: string;
   defaultSecurityLevel?: string;
+  needsPassword?: boolean;
 }
 
 export interface Message {

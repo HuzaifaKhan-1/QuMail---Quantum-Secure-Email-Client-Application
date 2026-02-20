@@ -114,7 +114,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
               {user.username}
             </p>
             <p className="text-[10px] text-primary font-mono truncate font-bold" data-testid="text-secure-email">
-              {user.secureEmail}
+              {user.userSecureEmail}
             </p>
             <p className="text-[9px] text-muted-foreground truncate opacity-70" data-testid="text-google-email">
               {user.googleEmail}
