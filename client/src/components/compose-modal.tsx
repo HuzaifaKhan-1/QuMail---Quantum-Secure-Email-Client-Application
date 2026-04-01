@@ -175,20 +175,26 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
     switch (level) {
       case SecurityLevel.LEVEL1_OTP:
         return {
-          name: "Level 1 - Quantum OTP (Top Secret)",
+          name: "Level 1 - Top Secret (Read Once)",
           description: "One-Time Pad encryption using quantum keys (Highest Security)",
           warning: keyPoolStats && keyPoolStats.remainingMB < 10 ? "Low key pool - may fallback to Level 2" : null
         };
       case SecurityLevel.LEVEL2_AES:
         return {
-          name: "🔐 Quantum Secured (AES-256-GCM)",
+          name: "Level 2 - Secure Communication",
           description: "AES-256-GCM with quantum-derived keys",
           warning: null
         };
       case SecurityLevel.LEVEL3_PQC:
         return {
-          name: "🛡 Post-Quantum Protected (CRYSTALS-Kyber)",
+          name: "Level 3 - Future-Proof Security",
           description: "Post-Quantum Cryptography with CRYSTALS-Kyber KEM",
+          warning: null
+        };
+      case SecurityLevel.LEVEL4_PLAIN:
+        return {
+          name: "Level 4 - Standard Communication",
+          description: "Standard unencrypted communication",
           warning: null
         };
       default:
@@ -272,10 +278,10 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Quantum OTP (Top Secret)</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL2_AES}>🔐 Quantum Secured (AES-256-GCM)</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL3_PQC}>🛡 Post-Quantum Protected (CRYSTALS-Kyber)</SelectItem>
-                    <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Standard Email (Level 4)</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Top Secret (Read Once)</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL2_AES}>Level 2 - Secure Communication</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - Future-Proof Security</SelectItem>
+                    <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Level 4 - Standard Communication</SelectItem>
                   </SelectContent>
                 </Select>
 

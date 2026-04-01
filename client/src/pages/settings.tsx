@@ -105,10 +105,10 @@ export default function Settings() {
   const providerInfo = getProviderInfo("Google");
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
@@ -214,10 +214,10 @@ export default function Settings() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Quantum OTP (Highest Security)</SelectItem>
-                      <SelectItem value={SecurityLevel.LEVEL2_AES}>Level 2 - Quantum-seeded AES-GCM</SelectItem>
-                      <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - PQC Hybrid (Simulated)</SelectItem>
-                      <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Level 4 - Plain Text</SelectItem>
+                      <SelectItem value={SecurityLevel.LEVEL1_OTP}>Level 1 - Top Secret (Read Once)</SelectItem>
+                      <SelectItem value={SecurityLevel.LEVEL2_AES}>Level 2 - Secure Communication</SelectItem>
+                      <SelectItem value={SecurityLevel.LEVEL3_PQC}>Level 3 - Future-Proof Security</SelectItem>
+                      <SelectItem value={SecurityLevel.LEVEL4_PLAIN}>Level 4 - Standard Communication</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center space-x-2">

@@ -13,36 +13,36 @@ export default function SecurityBadge({ level, size = "md", showIcon = true }: S
     switch (level) {
       case SecurityLevel.LEVEL1_OTP:
         return {
-          label: "🔐 Quantum OTP Protected",
-          description: "One-Time Pad (Top Secret)",
+          label: "Level 1 - Top Secret (Read Once)",
+          description: "One-Time Pad (Highest Security)",
           color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
           icon: Shield
         };
       case SecurityLevel.LEVEL2_AES:
         return {
-          label: "🔐 Quantum Secured (AES-256-GCM)",
+          label: "Level 2 - Secure Communication",
           description: "Quantum-seeded AES",
           color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
           icon: Key
         };
       case SecurityLevel.LEVEL3_PQC:
         return {
-          label: "🛡 Post-Quantum Protected (CRYSTALS-Kyber)",
+          label: "Level 3 - Future-Proof Security",
           description: "Post-Quantum Cryptography",
           color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
           icon: Lock
         };
       case SecurityLevel.LEVEL4_PLAIN:
         return {
-          label: "Standard Email",
-          description: "No encryption",
+          label: "Level 4 - Standard Communication",
+          description: "Standard Email",
           color: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
           icon: Mail
         };
       default:
         return {
-          label: "Unknown",
-          description: "Unknown security level",
+          label: "Level 4 - Standard Communication",
+          description: "Unknown level",
           color: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
           icon: Mail
         };

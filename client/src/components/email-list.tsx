@@ -105,7 +105,7 @@ export default function EmailList({
       } else {
         return {
           icon: Lock,
-          text: "🔐 Quantum OTP Protected",
+          text: "Level 1 - Top Secret (Read Once)",
           color: "text-amber-600"
         };
       }
@@ -181,7 +181,7 @@ export default function EmailList({
                     (message.isDecrypted && message.body) ?
                       message.body.substring(0, 100) + "..." :
                       message.isEncrypted ?
-                        (message.securityLevel === "level1" ? "🔐 Quantum OTP Protected" : "Encrypted message - open to view") :
+                        (message.securityLevel === "level1" ? "Level 1 - Top Secret (Read Once)" : "Encrypted message - open to view") :
                         "No preview available"
                   }
                 </p>
