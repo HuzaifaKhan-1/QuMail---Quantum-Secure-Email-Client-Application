@@ -17,8 +17,10 @@ import {
   Plus,
   RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from "lucide-react";
+import MobileHeader from "@/components/mobile-header";
 import type { Message } from "@/lib/types";
 
 export default function Inbox() {
@@ -180,12 +182,13 @@ export default function Inbox() {
   }
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-screen bg-background flex overflow-hidden flex-col md:flex-row">
+      <MobileHeader unreadCount={getUnreadCount()} />
       <Sidebar unreadCount={getUnreadCount()} />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
+        {/* Header - Desktop Only */}
+        <header className="hidden md:block bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center space-x-3">
@@ -251,9 +254,9 @@ export default function Inbox() {
         </header>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Email List */}
-          <div className="w-1/2 border-r border-border">
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Email List - Responsive */}
+          <div className={`${selectedMessage ? 'hidden md:block' : 'w-full'} md:w-1/2 border-r border-border h-full overflow-hidden`}>
             <EmailList
               folder={currentFolder}
               selectedMessageId={selectedMessage?.id}
@@ -262,8 +265,21 @@ export default function Inbox() {
             />
           </div>
 
-          {/* Email Preview */}
-          <div className="w-1/2">
+          {/* Email Preview - Responsive */}
+          <div className={`${selectedMessage ? 'w-full' : 'hidden'} md:block md:w-1/2 h-full overflow-hidden relative bg-background`}>
+            {selectedMessage && (
+              <div className="md:hidden absolute top-4 left-4 z-10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedMessage(null)}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+              </div>
+            )}
             <EmailPreview
               message={selectedMessage}
               onReply={handleReply}

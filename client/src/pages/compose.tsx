@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
+import MobileHeader from "@/components/mobile-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -191,12 +192,13 @@ export default function Compose() {
   }
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden">
+      <MobileHeader />
       <Sidebar />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
+        {/* Header - Desktop Only */}
+        <header className="hidden md:block bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
@@ -237,8 +239,8 @@ export default function Compose() {
             <CardContent>
               <form onSubmit={handleSend} className="space-y-6">
                 {/* Recipients */}
-                <div className="grid grid-cols-12 gap-4">
-                  <Label htmlFor="to" className="col-span-1 text-sm font-medium pt-2">
+                <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4">
+                  <Label htmlFor="to" className="text-sm font-medium pt-0 md:pt-2">
                     To:
                   </Label>
                   <Input
@@ -247,15 +249,15 @@ export default function Compose() {
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
                     placeholder="recipient@example.com"
-                    className="col-span-11"
+                    className="md:col-span-11"
                     required
                     data-testid="input-to"
                   />
                 </div>
 
                 {/* Subject */}
-                <div className="grid grid-cols-12 gap-4">
-                  <Label htmlFor="subject" className="col-span-1 text-sm font-medium pt-2">
+                <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4">
+                  <Label htmlFor="subject" className="text-sm font-medium pt-0 md:pt-2">
                     Subject:
                   </Label>
                   <Input
@@ -264,18 +266,18 @@ export default function Compose() {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Email subject..."
-                    className="col-span-11"
+                    className="md:col-span-11"
                     required
                     data-testid="input-subject"
                   />
                 </div>
 
                 {/* Security Level */}
-                <div className="grid grid-cols-12 gap-4">
-                  <Label className="col-span-1 text-sm font-medium pt-2">
+                <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4">
+                  <Label className="text-sm font-medium pt-0 md:pt-2">
                     Security:
                   </Label>
-                  <div className="col-span-11 space-y-2">
+                  <div className="md:col-span-11 space-y-2">
                     <Select 
                       value={securityLevel} 
                       onValueChange={(value: SecurityLevel) => setSecurityLevel(value)}
@@ -320,8 +322,8 @@ export default function Compose() {
                 </div>
 
                 {/* Message Body */}
-                <div className="grid grid-cols-12 gap-4">
-                  <Label htmlFor="body" className="col-span-1 text-sm font-medium pt-2">
+                <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4">
+                  <Label htmlFor="body" className="text-sm font-medium pt-0 md:pt-2">
                     Message:
                   </Label>
                   <Textarea
@@ -329,18 +331,18 @@ export default function Compose() {
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="Compose your secure message..."
-                    className="col-span-11 min-h-[200px] resize-none"
+                    className="md:col-span-11 min-h-[200px] resize-none"
                     required
                     data-testid="textarea-body"
                   />
                 </div>
 
                 {/* Attachments */}
-                <div className="grid grid-cols-12 gap-4">
-                  <Label className="col-span-1 text-sm font-medium pt-2">
+                <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4">
+                  <Label className="text-sm font-medium pt-0 md:pt-2">
                     Attachments:
                   </Label>
-                  <div className="col-span-11 space-y-4">
+                  <div className="md:col-span-11 space-y-4">
                     <div 
                       className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}

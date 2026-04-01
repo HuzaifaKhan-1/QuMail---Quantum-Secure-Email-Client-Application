@@ -235,26 +235,28 @@ export default function EmailPreview({
       <div className="flex-shrink-0 border-b border-border p-6 bg-card">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="text-xl font-semibold text-foreground mb-2" data-testid="text-subject">
+            <h3 className="text-2xl font-bold text-foreground mb-4 tracking-tight leading-tight pt-8 md:pt-0" data-testid="text-subject">
               {message.subject}
             </h3>
-            <div className="flex items-center space-x-4 text-xs">
-              <div className="flex flex-col">
-                <span className="text-muted-foreground uppercase tracking-tight font-bold text-[9px]">Sender Hash</span>
-                <span className="font-mono text-primary font-bold" data-testid="text-from">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <div className="flex flex-col min-w-[140px] max-w-full">
+                <span className="text-muted-foreground uppercase tracking-wider font-bold text-[8px] mb-1">Sender Hash</span>
+                <span className="font-mono text-primary font-bold break-words" data-testid="text-from">
                   {message.senderSecureEmail}
                 </span>
               </div>
-              <div className="flex flex-col border-l border-border pl-4">
-                <span className="text-muted-foreground uppercase tracking-tight font-bold text-[9px]">Recipient Hash</span>
-                <span className="font-mono text-foreground font-bold" data-testid="text-to">
+              <div className="flex flex-col min-w-[140px] max-w-full md:border-l md:border-border md:pl-4">
+                <span className="text-muted-foreground uppercase tracking-wider font-bold text-[8px] mb-1">Recipient Hash</span>
+                <span className="font-mono text-foreground font-bold break-words" data-testid="text-to">
                   {message.receiverSecureEmail}
                 </span>
               </div>
-              <span className="flex-1"></span>
-              <span className="text-muted-foreground">
-                {message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}
-              </span>
+              <div className="flex flex-col md:border-l md:border-border md:pl-4">
+                <span className="text-muted-foreground uppercase tracking-wider font-bold text-[8px] mb-1">Received</span>
+                <span className="text-muted-foreground font-medium text-[10px]">
+                  {message.receivedAt ? formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }) : ''}
+                </span>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -273,46 +275,50 @@ export default function EmailPreview({
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2 mt-4">
           <Button
             size="sm"
             variant="outline"
+            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
             onClick={() => onReply?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply"
           >
-            <Reply className="h-4 w-4 mr-1" />
+            <Reply className="h-4 w-4 mr-1.5" />
             Reply
           </Button>
           <Button
             size="sm"
             variant="outline"
+            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
             onClick={() => onReplyAll?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply-all"
           >
-            <ReplyAll className="h-4 w-4 mr-1" />
+            <ReplyAll className="h-4 w-4 mr-1.5" />
             Reply All
           </Button>
           <Button
             size="sm"
             variant="outline"
+            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
             onClick={() => onForward?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-forward"
           >
-            <Forward className="h-4 w-4 mr-1" />
+            <Forward className="h-4 w-4 mr-1.5" />
             Forward
           </Button>
           {canEdit && (
             <Button
               size="sm"
               variant="outline"
+              className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
               onClick={startEditing}
               disabled={isEditing}
               data-testid="button-edit"
             >
-              <Edit2 className="h-4 w-4 mr-1" />
+              <Edit2 className="h-4 w-4 mr-1.5" />
               Edit
             </Button>
           )}

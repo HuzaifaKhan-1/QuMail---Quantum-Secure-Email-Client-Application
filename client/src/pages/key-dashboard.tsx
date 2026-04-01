@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
+import MobileHeader from "@/components/mobile-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,12 +111,13 @@ export default function KeyDashboard() {
   }
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden">
+      <MobileHeader />
       <Sidebar />
       
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
+        {/* Header - Desktop Only */}
+        <header className="hidden md:block bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-foreground flex items-center space-x-2">
@@ -139,6 +141,7 @@ export default function KeyDashboard() {
                 onClick={() => handleRequestKey(8192)}
                 disabled={requestKeyMutation.isPending}
                 data-testid="button-request-key"
+                className="w-full md:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {requestKeyMutation.isPending ? "Requesting..." : "Request New Key"}
@@ -340,47 +343,56 @@ export default function KeyDashboard() {
                     {keys.map((key) => (
                       <div
                         key={key.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                        className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-all duration-300"
                         data-testid={`key-item-${key.id}`}
                       >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Key className="h-6 w-6 text-primary" />
+                        <div className="flex flex-col space-y-4">
+                          {/* Top Row: Icon, ID and Status Badge */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                                <Key className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-foreground truncate text-sm md:text-base mb-0.5" title={key.keyId}>
+                                  {key.keyId}
+                                </p>
+                                <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground font-medium">
+                                  <span className="bg-muted px-1.5 py-0.5 rounded">{(key.keyLength / 1024).toFixed(1)} KB</span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDistanceToNow(new Date(key.createdAt), { addSuffix: true })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge 
+                              className={`${getKeyStatusColor(key)} shrink-0 text-[10px] px-2 py-0.5 h-auto`}
+                              data-testid="badge-key-status"
+                            >
+                              {getKeyStatusText(key)}
+                            </Badge>
                           </div>
-                          <div>
-                            <p className="font-medium text-foreground" data-testid="text-key-id">
-                              {key.keyId}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {(key.keyLength / 1024).toFixed(1)} KB • 
-                              Created {formatDistanceToNow(new Date(key.createdAt), { addSuffix: true })}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Expires {formatDistanceToNow(new Date(key.expiryTime), { addSuffix: true })}
-                            </p>
+
+                          {/* Bottom Area: Usage Information */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center text-[10px] md:text-xs font-semibold">
+                                <span className="text-muted-foreground uppercase tracking-wider">Utilization</span>
+                                <span className="text-foreground">{key.utilizationPercent}%</span>
+                              </div>
+                              <Progress value={key.utilizationPercent} className="h-1.5 bg-muted" />
+                              <p className="text-[10px] text-muted-foreground text-right italic">
+                                {key.consumedBytes} / {key.maxConsumptionBytes} bytes consumed
+                              </p>
+                            </div>
+                            <div className="hidden sm:block border-l border-border pl-4 space-y-1">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Expiration</p>
+                              <p className="text-xs font-medium text-foreground">
+                                {formatDistanceToNow(new Date(key.expiryTime), { addSuffix: true })}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right min-w-[100px]">
-                            <p className="text-sm font-medium text-foreground">
-                              {key.utilizationPercent}% used
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {key.consumedBytes} / {key.maxConsumptionBytes} bytes
-                            </p>
-                            <Progress 
-                              value={key.utilizationPercent} 
-                              className="h-1 w-20 mt-1"
-                            />
-                          </div>
-                          
-                          <Badge 
-                            className={getKeyStatusColor(key)}
-                            data-testid="badge-key-status"
-                          >
-                            {getKeyStatusText(key)}
-                          </Badge>
                         </div>
                       </div>
                     ))}

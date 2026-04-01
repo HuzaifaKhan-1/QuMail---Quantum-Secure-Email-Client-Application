@@ -20,9 +20,11 @@ import {
 
 interface SidebarProps {
   unreadCount?: number;
+  isMobile?: boolean;
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
+export default function Sidebar({ unreadCount = 0, isMobile = false, onNavigate }: SidebarProps) {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -87,54 +89,59 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const user = userInfo.user;
 
   return (
-    <div className="w-64 bg-card border-r border-border flex flex-col h-screen">
+    <div className={`${isMobile ? 'flex flex-1' : 'hidden md:flex w-64 shrink-0'} bg-card border-r border-border flex-col h-screen overflow-y-auto`}>
       {/* Logo and Title */}
-      <div className="p-6 border-b border-border">
+      <div className="p-6 border-b border-border bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Shield className="h-6 w-6 text-primary-foreground" />
+          <div className="w-11 h-11 bg-gradient-to-tr from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 ring-1 ring-white/20">
+            <Shield className="h-6 w-6 text-white shadow-sm" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">QuMail</h1>
-            <p className="text-xs text-muted-foreground">Quantum Secure Email</p>
+            <h1 className="text-xl font-black text-foreground tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              QuMail
+            </h1>
+            <p className="text-[10px] text-primary uppercase font-bold tracking-[0.2em] opacity-80">
+              Quantum Secure
+            </p>
           </div>
         </div>
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center space-x-3 mb-3">
-          <Avatar className="h-9 w-9 border border-primary/20">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+      <div className="p-5 border-b border-border bg-muted/30">
+        <div className="flex items-center space-x-3 mb-4">
+          <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-sm">
+            <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-white text-xs font-black">
               {user.username?.charAt(0).toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-foreground truncate" data-testid="text-username">
+            <p className="text-sm font-black text-foreground truncate leading-none mb-1" data-testid="text-username">
               {user.username}
             </p>
-            <p className="text-[10px] text-primary font-mono truncate font-bold" data-testid="text-secure-email">
+            <p className="text-[10px] text-primary font-mono truncate font-black uppercase tracking-wider" data-testid="text-secure-email">
               {user.userSecureEmail}
             </p>
-            <p className="text-[9px] text-muted-foreground truncate opacity-70" data-testid="text-google-email">
+            <p className="text-[9px] text-muted-foreground truncate opacity-60 font-medium" data-testid="text-google-email">
               {user.googleEmail}
             </p>
           </div>
         </div>
 
         {/* Security Status */}
-        <div className="p-2 bg-green-50 dark:bg-green-950 rounded-md border border-green-200 dark:border-green-800">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-green-800 dark:text-green-200">
-              Security Status
+        <div className="p-3 bg-card rounded-xl border border-border shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              Security
             </span>
-            <span className="text-xs text-green-600 dark:text-green-400" data-testid="text-security-status">
+            <span className="text-[10px] font-black text-green-500 uppercase tracking-widest flex items-center" data-testid="text-security-status">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
               {securityStatus.level}
             </span>
           </div>
-          <div className="w-full bg-green-200 dark:bg-green-900 rounded-full h-1.5">
+          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
             <div
-              className={`${securityStatus.color} h-1.5 rounded-full transition-all`}
+              className={`${securityStatus.color} h-1.5 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(34,197,94,0.4)]`}
               style={{ width: `${100 - (keyPoolStats?.utilizationPercent || 0)}%` }}
             ></div>
           </div>
@@ -157,6 +164,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setLocation(item.path);
+                  if (onNavigate) onNavigate();
                 }}
                 data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
               >
@@ -184,6 +192,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
               e.preventDefault();
               e.stopPropagation();
               setLocation("/settings");
+              if (onNavigate) onNavigate();
             }}
             data-testid="nav-settings"
           >
@@ -198,6 +207,7 @@ export default function Sidebar({ unreadCount = 0 }: SidebarProps) {
               e.preventDefault();
               e.stopPropagation();
               setLocation("/audit");
+              if (onNavigate) onNavigate();
             }}
             data-testid="nav-security-audit"
           >

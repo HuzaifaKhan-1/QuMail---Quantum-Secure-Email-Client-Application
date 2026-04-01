@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
+import MobileHeader from "@/components/mobile-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,12 +106,13 @@ export default function Settings() {
   const providerInfo = getProviderInfo("Google");
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden">
+      <MobileHeader />
       <Sidebar />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
+        {/* Header - Desktop Only */}
+        <header className="hidden md:block bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-foreground flex items-center space-x-2">
@@ -362,21 +364,21 @@ export default function Settings() {
                         data-testid={`audit-log-${log.id}`}
                       >
                         <div className={`w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0 ${auditFetching && index === 0 ? 'animate-pulse' : ''}`}></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-foreground capitalize">
-                              {log.action.replace(/_/g, ' ')}
-                            </p>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(log.timestamp).toLocaleString()}
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                              <p className="text-sm font-bold text-foreground capitalize tracking-tight">
+                                {log.action.replace(/_/g, ' ')}
+                              </p>
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                {new Date(log.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            {log.details && Object.keys(log.details).length > 0 && (
+                              <p className="text-[11px] text-muted-foreground mt-1.5 break-words line-clamp-2 md:line-clamp-none font-mono">
+                                {JSON.stringify(log.details, null, 0)}
+                              </p>
+                            )}
                           </div>
-                          {log.details && Object.keys(log.details).length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {JSON.stringify(log.details, null, 0).slice(0, 100)}...
-                            </p>
-                          )}
-                        </div>
                       </div>
                     ))}
                   </div>

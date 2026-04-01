@@ -226,8 +226,8 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
         <form onSubmit={handleSend} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
             {/* Recipients */}
-            <div className="grid grid-cols-12 gap-4">
-              <Label htmlFor="modal-to" className="col-span-1 text-sm font-medium pt-2">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="modal-to" className="text-sm font-medium">
                 To:
               </Label>
               <Input
@@ -236,20 +236,20 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 placeholder="recipient@qumail.secure"
-                className="col-span-11 font-mono uppercase text-xs"
+                className="font-mono uppercase text-xs h-10"
                 required
                 data-testid="modal-input-to"
               />
               {!to.toLowerCase().endsWith('@qumail.secure') && to.length > 0 && (
-                <div className="col-start-2 col-span-11 text-[10px] text-destructive font-bold uppercase mt-1">
+                <div className="text-[10px] text-destructive font-bold uppercase mt-1">
                   Recipient Must Be a @qumail.secure Identity
                 </div>
               )}
             </div>
 
             {/* Subject */}
-            <div className="grid grid-cols-12 gap-4">
-              <Label htmlFor="modal-subject" className="col-span-1 text-sm font-medium pt-2">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="modal-subject" className="text-sm font-medium">
                 Subject:
               </Label>
               <Input
@@ -258,23 +258,23 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Email subject..."
-                className="col-span-11"
+                className="h-10"
                 required
                 data-testid="modal-input-subject"
               />
             </div>
 
             {/* Security Level */}
-            <div className="grid grid-cols-12 gap-4">
-              <Label className="col-span-1 text-sm font-medium pt-2">
+            <div className="flex flex-col space-y-2">
+              <Label className="text-sm font-medium">
                 Security:
               </Label>
-              <div className="col-span-11 space-y-2">
+              <div className="space-y-2">
                 <Select
                   value={securityLevel}
                   onValueChange={(value: SecurityLevel) => setSecurityLevel(value)}
                 >
-                  <SelectTrigger data-testid="modal-select-security">
+                  <SelectTrigger data-testid="modal-select-security" className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -285,7 +285,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                   </SelectContent>
                 </Select>
 
-                <div className="text-xs text-muted-foreground">
+                <div className="text-[11px] text-muted-foreground opacity-80 italic">
                   {securityInfo.description}
                 </div>
 
@@ -307,8 +307,8 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
             </div>
 
             {/* Message Body */}
-            <div className="grid grid-cols-12 gap-4">
-              <Label htmlFor="modal-body" className="col-span-1 text-sm font-medium pt-2">
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="modal-body" className="text-sm font-medium">
                 Message:
               </Label>
               <Textarea
@@ -316,7 +316,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Compose your secure message..."
-                className="col-span-11 min-h-[150px] resize-none"
+                className="min-h-[180px] resize-none"
                 required
                 data-testid="modal-textarea-body"
               />
@@ -384,21 +384,23 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
           </div>
 
           {/* Actions */}
-          <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-border bg-muted/30">
-            <div className="flex items-center space-x-4">
+          <div className="flex-shrink-0 flex flex-col md:flex-row items-center justify-between p-4 md:p-6 gap-4 border-t border-border bg-muted/30">
+            <div className="flex items-center space-x-2 md:space-x-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
+                className="whitespace-nowrap"
                 onClick={() => document.querySelector<HTMLInputElement>('[data-testid="modal-input-file"]')?.click()}
               >
-                <Paperclip className="h-4 w-4 mr-1" />
+                <Paperclip className="h-4 w-4 mr-1 text-primary" />
                 Attach Files
               </Button>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
+                className="whitespace-nowrap"
                 data-testid="modal-button-save-draft"
               >
                 <Save className="h-4 w-4 mr-1" />
@@ -406,11 +408,15 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
               </Button>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <SecurityBadge level={securityLevel} size="sm" />
+            <div className="flex items-center space-x-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-4 md:pt-0 border-border">
+              <div className="hidden sm:block">
+                <SecurityBadge level={securityLevel} size="sm" />
+              </div>
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
+                className="flex-1 md:flex-none"
                 onClick={handleClose}
                 data-testid="modal-button-cancel"
               >
@@ -418,8 +424,9 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
               </Button>
               <Button
                 type="submit"
+                size="sm"
                 disabled={sendEmailMutation.isPending}
-                className="flex items-center space-x-2"
+                className="flex-1 md:flex-none flex items-center space-x-2 bg-primary hover:bg-primary/90"
                 data-testid="modal-button-send"
               >
                 <Shield className="h-4 w-4" />
