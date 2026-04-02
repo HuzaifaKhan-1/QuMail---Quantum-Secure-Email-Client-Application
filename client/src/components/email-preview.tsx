@@ -233,8 +233,8 @@ export default function EmailPreview({
   return (
     <div className="h-full flex flex-col">
       <div className="flex-shrink-0 border-b border-border p-6 bg-card">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          <div className="flex-1 min-w-0">
             <h3 className="text-2xl font-bold text-foreground mb-4 tracking-tight leading-tight pt-8 md:pt-0" data-testid="text-subject">
               {message.subject}
             </h3>
@@ -259,7 +259,7 @@ export default function EmailPreview({
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 self-start sm:self-auto flex-shrink-0">
             <SecurityBadge level={message.securityLevel as any} size="sm" />
             {message.isEncrypted && !isDecryptedUI && !isContentDeleted && (
               <Button

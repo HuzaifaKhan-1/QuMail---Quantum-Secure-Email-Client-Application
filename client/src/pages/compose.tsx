@@ -396,57 +396,92 @@ export default function Compose() {
                     )}
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between pt-6 border-t border-border">
-                  <div className="flex items-center space-x-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      data-testid="button-attach-files"
-                    >
-                      <Paperclip className="h-4 w-4 mr-1" />
-                      Attach Files
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleSaveDraft}
-                      data-testid="button-save-draft"
-                    >
-                      <Save className="h-4 w-4 mr-1" />
-                      Save Draft
-                    </Button>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setLocation("/inbox")}
-                      data-testid="button-cancel"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={sendEmailMutation.isPending}
-                      className="flex items-center space-x-2"
-                      data-testid="button-send"
-                    >
-                      <Shield className="h-4 w-4" />
-                      <span>
-                        {sendEmailMutation.isPending ? "Sending..." : "Send Securely"}
-                      </span>
-                    </Button>
-                  </div>
-                </div>
               </form>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Professional Sticky Footer for Actions */}
+        <div className="flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-md p-4 sm:p-6 lg:px-12">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Desktop Left Side */}
+            <div className="hidden sm:flex items-center space-x-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="hover:bg-primary/10 text-primary"
+              >
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attach Files
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleSaveDraft}
+                className="hover:bg-muted"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Draft
+              </Button>
+            </div>
+
+            {/* Mobile Quick Actions Row */}
+            <div className="flex sm:hidden items-center justify-between border-b pb-3 border-border/50">
+              <div className="flex items-center space-x-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-primary hover:bg-primary/10"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach Files"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 hover:bg-muted"
+                  onClick={handleSaveDraft}
+                  title="Save Draft"
+                >
+                  <Save className="h-5 w-5" />
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2">
+                <SecurityBadge level={securityLevel} size="sm" />
+              </div>
+            </div>
+
+            {/* Primary Actions */}
+            <div className="flex items-center space-x-3 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 sm:flex-none h-12 sm:h-11 px-6 font-medium"
+                onClick={() => setLocation("/inbox")}
+                data-testid="button-cancel"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={sendEmailMutation.isPending}
+                onClick={handleSend}
+                className="flex-[2] sm:flex-none flex items-center justify-center space-x-2 bg-primary hover:bg-primary/90 h-12 sm:h-11 px-10 text-white shadow-lg active:scale-95 transition-all"
+                data-testid="button-send"
+              >
+                <Shield className="h-5 w-5" />
+                <span className="font-bold tracking-wide">
+                  {sendEmailMutation.isPending ? "Sending..." : "Send Securely"}
+                </span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

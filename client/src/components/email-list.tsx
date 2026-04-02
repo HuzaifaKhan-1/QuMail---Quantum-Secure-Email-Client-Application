@@ -99,14 +99,14 @@ export default function EmailList({
       if (message.isViewed) {
         return {
           icon: AlertCircle,
-          text: "🧨 Consumed",
-          color: "text-red-600"
+          text: "Consumed",
+          color: "text-red-500 font-bold"
         };
       } else {
         return {
           icon: Lock,
-          text: "Level 1 - Top Secret (Read Once)",
-          color: "text-amber-600"
+          text: "Read Once",
+          color: "text-amber-500 font-bold"
         };
       }
     }
@@ -152,28 +152,30 @@ export default function EmailList({
             data-testid={`email-item-${message.id}`}
           >
             <div className="flex items-start space-x-3">
-              <Avatar className="w-10 h-10">
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+              <Avatar className="w-10 h-10 shadow-sm">
+                <AvatarFallback className={`text-white text-xs font-bold ${
+                  ['bg-blue-600', 'bg-purple-600', 'bg-indigo-600', 'bg-cyan-600', 'bg-emerald-600'][displayName.length % 5]
+                }`}>
                   {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-mono font-bold text-primary truncate" data-testid="text-sender">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-[11px] font-mono font-black text-primary truncate uppercase tracking-tight" data-testid="text-sender">
                     {isSentFolder ? "→ " : "← "}{isSentFolder ? message.receiverSecureEmail : message.senderSecureEmail}
                   </p>
-                  <div className="flex items-center space-x-2 flex-shrink-0">
-                    <SecurityBadge level={message.securityLevel} size="sm" />
-                    <span className="text-xs text-muted-foreground" data-testid="text-time">
-                      {formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true })}
-                    </span>
-                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap" data-testid="text-time">
+                    {formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }).replace('about ', '')}
+                  </span>
                 </div>
 
-                <p className="text-sm text-foreground mb-1 truncate" data-testid="text-subject">
-                  {message.subject}
-                </p>
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <p className="text-sm font-bold text-foreground truncate " data-testid="text-subject">
+                    {message.subject}
+                  </p>
+                  <SecurityBadge level={message.securityLevel} size="sm" />
+                </div>
 
                 <p className="text-sm text-muted-foreground mb-2 truncate" data-testid="text-preview">
                   {message.securityLevel === "level1" && message.isViewed ?

@@ -182,7 +182,7 @@ export default function Inbox() {
   }
 
   return (
-    <div className="h-screen bg-background flex overflow-hidden flex-col md:flex-row">
+    <div className="h-[100dvh] bg-background flex overflow-hidden flex-col md:flex-row">
       <MobileHeader unreadCount={getUnreadCount()} />
       <Sidebar unreadCount={getUnreadCount()} />
 
@@ -253,6 +253,29 @@ export default function Inbox() {
           </div>
         </header>
 
+        {/* Mobile Search/Actions Bar */}
+        <div className="md:hidden bg-card border-b border-border px-4 py-3 flex items-center space-x-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10 text-sm rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 rounded-xl border-border/50 bg-muted/20"
+            onClick={handleRefresh}
+            disabled={fetchEmailsMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 ${fetchEmailsMutation.isPending ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden relative">
           {/* Email List - Responsive */}
@@ -289,6 +312,17 @@ export default function Inbox() {
           </div>
         </div>
       </div>
+
+      {/* Floating Action Button - Mobile Only */}
+      {!selectedMessage && (
+        <Button
+          onClick={() => setIsComposeOpen(true)}
+          className="md:hidden fixed bottom-8 right-6 h-16 w-16 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-primary hover:bg-primary/90 flex items-center justify-center p-0 z-40 transition-all active:scale-90"
+          data-testid="button-compose-fab"
+        >
+          <Plus className="h-8 w-8 text-white" />
+        </Button>
+      )}
 
       {/* Compose Modal */}
       <ComposeModal
