@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { storage } from "./storage";
 import { kmeSimulator } from "./services/kmeSimulator";
+import { aiGenerator, aiGenerateRequestSchema } from "./services/aiGenerator";
 import { emailService } from "./services/emailService";
 import { cryptoEngine } from "./services/cryptoEngine";
 import { SecurityLevel, insertUserSchema, insertAuditLogSchema, messages } from "@shared/schema";
@@ -527,6 +528,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Request key error:", error);
       res.status(400).json({ message: "Failed to request key" });
+    }
+  });
+
+  // AI Email Generation route
+  app.post("/api/ai/generate-email", requireAuth, async (req, res) => {
+    try {
+      const validatedData = aiGenerateRequestSchema.parse(req.body);
+      const generatedEmail = await aiGenerator.generateEmail(validatedData);
+      
+      res.json(generatedEmail);
+    } catch (error: any) {
+      console.error("AI Generation API Error:", error);
+      const status = error.message.includes("configured") ? 503 : 400;
+      res.status(status).json({ 
+        message: error.message || "Failed to generate email content"
+      });
     }
   });
 

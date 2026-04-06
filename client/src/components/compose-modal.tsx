@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import SecurityBadge from "./security-badge";
+import AiGeneratorModal from "./ai-generator-modal";
 import {
   Send,
   Shield,
@@ -19,7 +20,8 @@ import {
   Save,
   X,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
 import { SecurityLevel, type SendEmailRequest, type Message } from "@/lib/types";
 
@@ -44,6 +46,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
   const [body, setBody] = useState("");
   const [securityLevel, setSecurityLevel] = useState<SecurityLevel>(SecurityLevel.LEVEL1_OTP);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Effect to populate fields based on reply data
   React.useEffect(() => {
@@ -171,6 +174,11 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
     sendEmailMutation.mutate(emailData);
   };
 
+  const handleAiGenerate = (generatedSubject: string, generatedBody: string) => {
+    setSubject(generatedSubject);
+    setBody(generatedBody);
+  };
+
   const getSecurityLevelInfo = (level: SecurityLevel) => {
     switch (level) {
       case SecurityLevel.LEVEL1_OTP:
@@ -209,6 +217,7 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
   const securityInfo = getSecurityLevelInfo(securityLevel);
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-4xl w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 rounded-none sm:rounded-lg">
         <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-border">
@@ -406,6 +415,16 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                   <Save className="h-4 w-4 mr-2" />
                   Save Draft
                 </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsAiModalOpen(true)}
+                  className="text-primary font-semibold hover:bg-primary/10 hover:text-primary transition-colors"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate with AI
+                </Button>
               </div>
 
               {/* Mobile View: Quick Actions Row */}
@@ -429,6 +448,16 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                     title="Save Draft"
                   >
                     <Save className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 text-primary hover:bg-primary/10"
+                    onClick={() => setIsAiModalOpen(true)}
+                    title="Generate with AI"
+                  >
+                    <Sparkles className="h-5 w-5" />
                   </Button>
                  </div>
                  <SecurityBadge level={securityLevel} size="sm" />
@@ -462,5 +491,11 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
         </form>
       </DialogContent>
     </Dialog>
+    <AiGeneratorModal 
+      isOpen={isAiModalOpen} 
+      onClose={() => setIsAiModalOpen(false)} 
+      onGenerate={handleAiGenerate}
+    />
+  </>
   );
 }
