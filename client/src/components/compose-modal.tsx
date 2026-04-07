@@ -29,7 +29,7 @@ interface ComposeModalProps {
   isOpen: boolean;
   onClose: () => void;
   replyData?: {
-    type: 'reply' | 'reply-all' | 'forward' | null;
+    type: 'reply' | 'reply-all' | 'forward' | 'edit-draft' | null;
     message: Message | null;
   };
 }
@@ -72,6 +72,14 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
           setSubject(message.subject.startsWith('Fwd: ') ? message.subject : `Fwd: ${message.subject}`);
           setBody(`\n\n--- Forwarded Message ---\nFrom: ${message.from}\nTo: ${message.to}\nSubject: ${message.subject}\nDate: ${new Date(message.receivedAt).toLocaleString()}\n\n${message.body}`);
           break;
+
+        case 'edit-draft':
+          setTo(message.to);
+          setSubject(message.subject);
+          setBody(message.body || "");
+          setSecurityLevel(message.securityLevel as SecurityLevel);
+          // If the draft has attachments, we'd ideally load them here too
+          break;
       }
     }
   }, [replyData]);
@@ -95,6 +103,24 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
     onError: (error: any) => {
       toast({
         title: "Failed to send email",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: (emailData: Partial<SendEmailRequest>) => api.saveDraft(emailData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "drafts"] });
+      toast({
+        title: "Draft saved",
+        description: "Your draft has been saved to the Drafts folder.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to save draft",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -136,6 +162,31 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
 
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(att => att.id !== id));
+  };
+
+  const handleSaveDraft = async () => {
+    // Convert attachments to base64
+    const attachmentData = await Promise.all(
+      attachments.map(async (att) => {
+        const buffer = await att.file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        return {
+          filename: att.file.name,
+          content: base64,
+          contentType: att.file.type
+        };
+      })
+    );
+
+    const emailData: Partial<SendEmailRequest> = {
+      to: to.toLowerCase(),
+      subject,
+      body,
+      securityLevel,
+      attachments: attachmentData.length > 0 ? attachmentData : undefined
+    };
+
+    saveDraftMutation.mutate(emailData);
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -411,9 +462,11 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                   variant="ghost"
                   size="sm"
                   data-testid="modal-button-save-draft"
+                  onClick={handleSaveDraft}
+                  disabled={saveDraftMutation.isPending}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  Save Draft
+                  {saveDraftMutation.isPending ? "Saving..." : "Save Draft"}
                 </Button>
                 <Button
                   type="button"
@@ -446,6 +499,8 @@ export default function ComposeModal({ isOpen, onClose, replyData }: ComposeModa
                     size="icon"
                     className="h-10 w-10 hover:bg-muted"
                     title="Save Draft"
+                    onClick={handleSaveDraft}
+                    disabled={saveDraftMutation.isPending}
                   >
                     <Save className="h-5 w-5" />
                   </Button>

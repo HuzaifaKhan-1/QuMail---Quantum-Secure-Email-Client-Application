@@ -37,6 +37,7 @@ export interface IStorage {
   createMessage(message: InsertMessage): Promise<Message>;
   updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined>;
   deleteMessage(id: string): Promise<boolean>;
+  emptyTrash(userId: string): Promise<number>;
 
   // Quantum key methods
   getQuantumKey(keyId: string): Promise<QuantumKey | undefined>;
@@ -103,6 +104,7 @@ export class DatabaseStorage implements IStorage {
 
   // Message methods
   async getMessagesByUser(userId: string, folder = "inbox", limit = 50): Promise<Message[]> {
+    console.log(`Getting messages for user ${userId} in folder ${folder}`);
     const messagesList = await db
       .select()
       .from(messages)
@@ -110,7 +112,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(messages.receivedAt))
       .limit(limit);
 
-    console.log(`Retrieved ${messagesList.length} messages for user ${userId} in folder ${folder}`);
+    console.log(`Retrieved ${messagesList.length} messages for folder ${folder}`);
     return messagesList;
   }
 
@@ -128,20 +130,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMessage(id: string, updates: Partial<Message>): Promise<Message | undefined> {
+    const setData: any = { ...updates };
+    
+    if (updates.body !== undefined || updates.encryptedBody !== undefined) {
+      setData.editedAt = new Date();
+    }
+
+    console.log(`Updating message ${id} with:`, JSON.stringify(setData));
     const [message] = await db
       .update(messages)
-      .set({
-        ...updates,
-        editedAt: (updates.body !== undefined || updates.encryptedBody !== undefined) ? new Date() : undefined
-      })
+      .set(setData)
       .where(eq(messages.id, id))
       .returning();
+    
+    if (message) {
+      console.log(`Update successful. New folder: ${message.folder}`);
+    } else {
+      console.log(`Update failed. No message found with ID ${id}`);
+    }
     return message || undefined;
   }
 
   async deleteMessage(id: string): Promise<boolean> {
     const result = await db.delete(messages).where(eq(messages.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async emptyTrash(userId: string): Promise<number> {
+    const result = await db
+      .delete(messages)
+      .where(and(eq(messages.userId, userId), eq(messages.folder, "trash")));
+    return result.rowCount || 0;
   }
 
   // Quantum key methods

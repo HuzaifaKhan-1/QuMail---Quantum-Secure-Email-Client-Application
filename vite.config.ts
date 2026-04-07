@@ -22,5 +22,9 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    hmr: {
+      clientPort: 5000
+    }
   },
+  cacheDir: process.env.TEMP ? path.join(process.env.TEMP, "vite-qumail-cache") : ".vite",
 });

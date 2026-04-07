@@ -18,7 +18,9 @@ import {
   AlertCircle,
   Edit2,
   Check,
-  X
+  X,
+  Trash2,
+  RotateCcw
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Message } from "@/lib/types";
@@ -28,13 +30,21 @@ interface EmailPreviewProps {
   onReply?: (message: Message) => void;
   onReplyAll?: (message: Message) => void;
   onForward?: (message: Message) => void;
+  onEditDraft?: (message: Message) => void;
+  onDelete?: (message: Message) => void;
+  onPermanentlyDelete?: (message: Message) => void;
+  onRestore?: (message: Message) => void;
 }
 
 export default function EmailPreview({
   message,
   onReply,
   onReplyAll,
-  onForward
+  onForward,
+  onEditDraft,
+  onDelete,
+  onPermanentlyDelete,
+  onRestore
 }: EmailPreviewProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = React.useState(false);
@@ -175,9 +185,12 @@ export default function EmailPreview({
   }, [message?.id, message?.securityLevel, isDecryptedUI, displayBody]);
 
   const canEdit = (() => {
-    if (message && message.receivedAt) {
-      const receivedDate = new Date(message.receivedAt);
-      return message.folder === "sent" && (Date.now() - receivedDate.getTime() < 15 * 60 * 1000);
+    if (message) {
+      if (message.folder === "drafts") return true;
+      if (message.folder === "sent" && message.receivedAt) {
+        const receivedDate = new Date(message.receivedAt);
+        return Date.now() - receivedDate.getTime() < 15 * 60 * 1000;
+      }
     }
     return false;
   })();
@@ -275,11 +288,11 @@ export default function EmailPreview({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 pt-3 border-t border-border/50">
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
+            className="flex-1 min-w-fit h-9 px-3 border-border bg-card hover:bg-muted hover:text-foreground transition-all"
             onClick={() => onReply?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply"
@@ -290,7 +303,7 @@ export default function EmailPreview({
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
+            className="flex-1 min-w-fit h-9 px-3 border-border bg-card hover:bg-muted hover:text-foreground transition-all"
             onClick={() => onReplyAll?.({ ...message, body: displayBody })}
             disabled={message.securityLevel === "level1"}
             data-testid="button-reply-all"
@@ -301,26 +314,68 @@ export default function EmailPreview({
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
-            onClick={() => onForward?.({ ...message, body: displayBody })}
+            className="flex-1 min-w-fit h-9 px-3 border-border bg-card hover:bg-muted hover:text-foreground transition-all"
+            onClick={() => onForward?.(message)}
             disabled={message.securityLevel === "level1"}
             data-testid="button-forward"
           >
             <Forward className="h-4 w-4 mr-1.5" />
             Forward
           </Button>
+          
           {canEdit && (
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 min-w-[100px] h-9 border-border bg-card hover:bg-muted"
-              onClick={startEditing}
+              className="flex-1 min-w-fit h-9 px-3 border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+              onClick={() => {
+                if (message.folder === "drafts" && onEditDraft) {
+                  onEditDraft(message);
+                } else {
+                  startEditing();
+                }
+              }}
               disabled={isEditing}
               data-testid="button-edit"
             >
               <Edit2 className="h-4 w-4 mr-1.5" />
-              Edit
+              {message.folder === "drafts" ? "Open in Editor" : "Edit"}
             </Button>
+          )}
+
+          {message.folder !== "trash" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 min-w-fit h-9 px-3 border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+              onClick={() => onDelete?.(message)}
+              data-testid="button-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              Delete
+            </Button>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 min-w-fit h-9 px-3 border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                onClick={() => onRestore?.(message)}
+              >
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                Restore
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="flex-1 min-w-fit h-9 px-4 shadow-sm hover:bg-destructive/90 transition-all font-semibold"
+                onClick={() => onPermanentlyDelete?.(message)}
+                data-testid="button-permanent-delete"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Delete Forever
+              </Button>
+            </>
           )}
         </div>
       </div>

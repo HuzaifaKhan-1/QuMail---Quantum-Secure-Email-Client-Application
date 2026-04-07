@@ -150,6 +150,12 @@ function Router() {
       <Route path="/sent">
         <ProtectedRoute component={Inbox} />
       </Route>
+      <Route path="/drafts">
+        <ProtectedRoute component={Inbox} />
+      </Route>
+      <Route path="/trash">
+        <ProtectedRoute component={Inbox} />
+      </Route>
       <Route path="/">
         <RedirectToLogin />
       </Route>

@@ -123,7 +123,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ------------------------------------------------
 
   const httpServer = createServer(app);
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    if (request.url?.startsWith("/ws")) {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    }
+    // Let other handlers (like Vite) process non-/ws UPGRADE requests
+  });
 
   wss.on('connection', (ws, req) => {
     // Basic session-based auth for WS
@@ -633,6 +642,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/emails/draft", requireAuth, async (req, res) => {
+    try {
+      const draftSchema = z.object({
+        to: z.string().optional().default(""),
+        subject: z.string().optional().default("(No Subject)"),
+        body: z.string().optional().default(""),
+        securityLevel: z.nativeEnum(SecurityLevel).optional().default(SecurityLevel.LEVEL4_PLAIN),
+        attachments: z.array(z.object({
+          filename: z.string(),
+          content: z.string(), // base64
+          contentType: z.string()
+        })).optional()
+      });
+
+      const draftData = draftSchema.parse(req.body);
+      const userId = req.session?.userId as string;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Store draft
+      const message = await storage.createMessage({
+        userId,
+        messageId: `draft-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        from: user.userSecureEmail,
+        to: draftData.to || "draft@qumail.secure",
+        senderSecureEmail: user.userSecureEmail,
+        receiverSecureEmail: draftData.to || "draft@qumail.secure",
+        subject: draftData.subject,
+        body: draftData.body,
+        securityLevel: draftData.securityLevel,
+        folder: "drafts",
+        isEncrypted: false,
+        isDecrypted: true,
+        isViewed: false,
+        metadata: {},
+        attachments: draftData.attachments?.map(att => ({
+          filename: att.filename,
+          contentType: att.contentType,
+          size: Math.round(att.content.length * 0.75) // Rough estimate for base64
+        })) || []
+      });
+
+      await storage.createAuditLog({
+        userId,
+        action: "draft_saved",
+        details: { messageId: message.id, subject: message.subject },
+        ipAddress: req.ip as string || "0.0.0.0",
+        userAgent: req.get('User-Agent') || "unknown"
+      });
+
+      res.json(message);
+    } catch (error: any) {
+      console.error("Save draft error:", error);
+      res.status(400).json({ message: error.message || "Failed to save draft" });
+    }
+  });
+
+  // Move email to a different folder (e.g., trash)
+  app.patch("/api/emails/:messageId/folder", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { folder } = z.object({ folder: z.string() }).parse(req.body);
+      const userId = req.session?.userId as string;
+
+      const message = await storage.getMessage(messageId);
+      if (!message || message.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      console.log(`Moving message ${messageId} to folder ${folder} for user ${userId}`);
+      const updated = await storage.updateMessage(messageId, { folder });
+      console.log(`Update result folder: ${updated?.folder}`);
+      
+      // Notify client via WebSocket
+      notifyUser(userId, {
+        type: 'EMAIL_UPDATED',
+        messageId,
+        folder
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to move email" });
+    }
+  });
+
+  // Permanently delete an email
+  app.delete("/api/emails/:messageId", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const userId = req.session?.userId as string;
+
+      const message = await storage.getMessage(messageId);
+      if (!message || message.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      await storage.deleteMessage(messageId);
+
+      // Notify client via WebSocket
+      notifyUser(userId, {
+        type: 'EMAIL_UPDATED',
+        messageId,
+        folder: message.folder
+      });
+
+      res.json({ message: "Email deleted successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to delete email" });
+    }
+  });
+
+  // Empty Trash
+  app.delete("/api/emails/folder/trash", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId as string;
+      const deletedCount = await storage.emptyTrash(userId);
+
+      // Notify client via WebSocket
+      notifyUser(userId, {
+        type: 'EMAIL_UPDATED',
+        folder: "trash"
+      });
+
+      res.json({ message: `Trash emptied. ${deletedCount} messages deleted.` });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to empty trash" });
+    }
+  });
+
+  // Fetch / Sync Emails (Simulated or triggered)
+  app.post("/api/emails/fetch", requireAuth, async (req, res) => {
+    try {
+      // In a real external IMAP integration, this would trigger imapFlow logic.
+      // For the internal Quantum secure email network, delivery is instantaneous via WebSocket.
+      res.json({ message: "Sync successful", synced: 0 });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to sync emails" });
+    }
+  });
+
   app.post("/api/emails/:messageId/edit", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;
@@ -643,19 +796,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Message not found" });
       }
 
-      if (message.folder !== "sent") {
-        return res.status(403).json({ message: "Only sent messages can be edited" });
+      if (message.folder !== "sent" && message.folder !== "drafts") {
+        return res.status(403).json({ message: "Only sent messages or drafts can be edited" });
       }
 
-      if (!message.receivedAt) {
+      if (message.folder === "sent" && !message.receivedAt) {
         return res.status(500).json({ message: "Invalid message date" });
       }
 
-      const sentAt = new Date(message.receivedAt).getTime();
+      const sentAt = message.receivedAt ? new Date(message.receivedAt).getTime() : 0;
       const now = Date.now();
       const editWindow = 15 * 60 * 1000; // 15 minutes window
 
-      if (now - sentAt > editWindow) {
+      if (message.folder === "sent" && (now - sentAt > editWindow)) {
         return res.status(403).json({ message: "Edit time limit expired (15 minutes)" });
       }
 

@@ -22,8 +22,10 @@ import {
   ArrowLeft,
   Upload,
   X,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
+import AiGeneratorModal from "@/components/ai-generator-modal";
 import { SecurityLevel, type SendEmailRequest } from "@/lib/types";
 
 interface AttachmentFile {
@@ -39,6 +41,7 @@ export default function Compose() {
   const [body, setBody] = useState("");
   const [securityLevel, setSecurityLevel] = useState<SecurityLevel>(SecurityLevel.LEVEL1_OTP);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userInfo } = useQuery({
@@ -65,6 +68,24 @@ export default function Compose() {
     onError: (error: any) => {
       toast({
         title: "Failed to send email",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: (emailData: Partial<SendEmailRequest>) => api.saveDraft(emailData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "drafts"] });
+      toast({
+        title: "Draft saved",
+        description: "Your draft has been saved to the Drafts folder.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to save draft",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -99,12 +120,34 @@ export default function Compose() {
     setAttachments(prev => prev.filter(att => att.id !== id));
   };
 
-  const handleSaveDraft = () => {
-    // TODO: Implement save draft functionality
-    toast({
-      title: "Draft saved",
-      description: "Your draft has been saved locally.",
-    });
+  const handleSaveDraft = async () => {
+    // Convert attachments to base64
+    const attachmentData = await Promise.all(
+      attachments.map(async (att) => {
+        const buffer = await att.file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        return {
+          filename: att.file.name,
+          content: base64,
+          contentType: att.file.type
+        };
+      })
+    );
+
+    const emailData: Partial<SendEmailRequest> = {
+      to,
+      subject,
+      body,
+      securityLevel,
+      attachments: attachmentData.length > 0 ? attachmentData : undefined
+    };
+
+    saveDraftMutation.mutate(emailData);
+  };
+
+  const handleAiGenerate = (generatedSubject: string, generatedBody: string) => {
+    setSubject(generatedSubject);
+    setBody(generatedBody);
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -426,6 +469,16 @@ export default function Compose() {
                 <Save className="h-4 w-4 mr-2" />
                 Save Draft
               </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAiModalOpen(true)}
+                className="text-primary font-semibold hover:bg-primary/10 hover:text-primary transition-colors"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate with AI
+              </Button>
             </div>
 
             {/* Mobile Quick Actions Row */}
@@ -450,6 +503,16 @@ export default function Compose() {
                   title="Save Draft"
                 >
                   <Save className="h-5 w-5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-primary hover:bg-primary/10"
+                  onClick={() => setIsAiModalOpen(true)}
+                  title="Generate with AI"
+                >
+                  <Sparkles className="h-5 w-5" />
                 </Button>
               </div>
               <div className="flex items-center space-x-2">
@@ -484,6 +547,11 @@ export default function Compose() {
           </div>
         </div>
       </div>
+      <AiGeneratorModal 
+        isOpen={isAiModalOpen} 
+        onClose={() => setIsAiModalOpen(false)} 
+        onGenerate={handleAiGenerate}
+      />
     </div>
   );
 }

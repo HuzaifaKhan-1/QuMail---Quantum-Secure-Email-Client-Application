@@ -18,7 +18,8 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  Trash2
 } from "lucide-react";
 import MobileHeader from "@/components/mobile-header";
 import type { Message } from "@/lib/types";
@@ -29,13 +30,18 @@ export default function Inbox() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [replyData, setReplyData] = useState<{
-    type: 'reply' | 'reply-all' | 'forward' | null;
+    type: 'reply' | 'reply-all' | 'forward' | 'edit-draft' | null;
     message: Message | null;
   }>({ type: null, message: null });
 
   // Get current folder from URL path
   const [location] = useLocation();
-  const currentFolder = location === "/sent" ? "sent" : "inbox";
+  const currentFolder = (() => {
+    if (location === "/sent") return "sent";
+    if (location === "/drafts") return "drafts";
+    if (location === "/trash") return "trash";
+    return "inbox";
+  })();
 
   const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/emails", currentFolder],
@@ -122,6 +128,41 @@ export default function Inbox() {
     }
   });
 
+  const moveEmailMutation = useMutation({
+    mutationFn: ({ messageId, folder }: { messageId: string, folder: string }) => api.moveEmail(messageId, folder),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "trash"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "drafts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "sent"] });
+      toast({ title: "Email moved to trash", description: "The email has been moved to the trash folder" });
+      setSelectedMessage(null);
+    }
+  });
+
+  const deletePermanentlyMutation = useMutation({
+    mutationFn: (messageId: string) => api.deleteEmail(messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "trash"] });
+      toast({ title: "Email permanently deleted", variant: "destructive" });
+      setSelectedMessage(null);
+    }
+  });
+
+  const emptyTrashMutation = useMutation({
+    mutationFn: () => api.emptyTrash(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails", "trash"] });
+      toast({ title: "Trash emptied", description: data.message });
+      setSelectedMessage(null);
+    }
+  });
+
+  const handleRestore = (messageId: string) => {
+    moveEmailMutation.mutate({ messageId, folder: "inbox" });
+    toast({ title: "Email restored to Inbox" });
+  };
+
   const handleSelectMessage = async (message: Message) => {
     // If it's a view-once message that we're navigating away from, we should clear it
     if (selectedMessage?.securityLevel === 'level1') {
@@ -167,6 +208,11 @@ export default function Inbox() {
 
   const handleForward = (message: Message) => {
     setReplyData({ type: 'forward', message });
+    setIsComposeOpen(true);
+  };
+
+  const handleEditDraft = (message: Message) => {
+    setReplyData({ type: 'edit-draft', message });
     setIsComposeOpen(true);
   };
 
@@ -217,6 +263,19 @@ export default function Inbox() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {currentFolder === "trash" && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => emptyTrashMutation.mutate()}
+                  disabled={emptyTrashMutation.isPending || !messages || messages.length === 0}
+                  className="flex items-center space-x-2 shadow-sm hover:bg-destructive/90 transition-all active:scale-95"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Empty Trash</span>
+                </Button>
+              )}
+
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -308,6 +367,10 @@ export default function Inbox() {
               onReply={handleReply}
               onReplyAll={handleReplyAll}
               onForward={handleForward}
+              onEditDraft={handleEditDraft}
+              onDelete={(msg: Message) => moveEmailMutation.mutate({ messageId: msg.id, folder: "trash" })}
+              onPermanentlyDelete={(msg: Message) => deletePermanentlyMutation.mutate(msg.id)}
+              onRestore={(msg: Message) => handleRestore(msg.id)}
             />
           </div>
         </div>

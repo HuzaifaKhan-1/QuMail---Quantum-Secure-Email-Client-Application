@@ -52,8 +52,28 @@ export const api = {
     return response.json();
   },
 
+  async saveDraft(emailData: Partial<SendEmailRequest>) {
+    const response = await apiRequest("POST", "/api/emails/draft", emailData);
+    return response.json();
+  },
+
   async editEmail(messageId: string, body: string): Promise<Message> {
     const response = await apiRequest("POST", `/api/emails/${messageId}/edit`, { body });
+    return response.json();
+  },
+
+  async moveEmail(messageId: string, folder: string): Promise<Message> {
+    const response = await apiRequest("PATCH", `/api/emails/${messageId}/folder`, { folder });
+    return response.json();
+  },
+
+  async deleteEmail(messageId: string): Promise<any> {
+    const response = await apiRequest("DELETE", `/api/emails/${messageId}`);
+    return response.json();
+  },
+
+  async emptyTrash(): Promise<any> {
+    const response = await apiRequest("DELETE", "/api/emails/folder/trash");
     return response.json();
   },
 

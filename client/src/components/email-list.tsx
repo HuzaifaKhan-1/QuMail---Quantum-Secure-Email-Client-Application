@@ -139,7 +139,10 @@ export default function EmailList({
     <div className="h-full overflow-y-auto">
       {filteredMessages.map((message) => {
         const isSentFolder = folder === "sent";
-        const displayName = isSentFolder ? getFromName(message.to) : getFromName(message.from);
+        const isDraftsFolder = folder === "drafts";
+        const displayName = (isSentFolder || isDraftsFolder) ? 
+          (message.to ? getFromName(message.to) : "Draft") : 
+          getFromName(message.from);
         const encryptionStatus = getEncryptionStatus(message);
         const isSelected = selectedMessageId === message.id;
 
@@ -163,7 +166,7 @@ export default function EmailList({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className="text-[11px] font-mono font-black text-primary truncate uppercase tracking-tight" data-testid="text-sender">
-                    {isSentFolder ? "→ " : "← "}{isSentFolder ? message.receiverSecureEmail : message.senderSecureEmail}
+                    {isDraftsFolder ? "[DRAFT] → " : (isSentFolder ? "→ " : "← ")}{isSentFolder || isDraftsFolder ? message.receiverSecureEmail : message.senderSecureEmail}
                   </p>
                   <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap" data-testid="text-time">
                     {formatDistanceToNow(new Date(message.receivedAt), { addSuffix: true }).replace('about ', '')}

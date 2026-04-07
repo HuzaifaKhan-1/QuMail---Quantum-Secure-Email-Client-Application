@@ -15,7 +15,8 @@ import {
   Trash,
   Settings,
   ShieldCheck,
-  LogOut
+  LogOut,
+  Save
 } from "lucide-react";
 
 interface SidebarProps {
@@ -57,13 +58,10 @@ export default function Sidebar({ unreadCount = 0, isMobile = false, onNavigate 
   });
 
   const navItems = [
-    {
-      path: "/inbox",
-      icon: Inbox,
-      label: "Inbox",
-      badge: unreadCount > 0 ? unreadCount.toString() : undefined
-    },
+    { path: "/inbox", icon: Inbox, label: "Inbox", badge: unreadCount > 0 ? unreadCount.toString() : undefined },
     { path: "/sent", icon: Send, label: "Sent" },
+    { path: "/drafts", icon: Save, label: "Drafts" },
+    { path: "/trash", icon: Trash, label: "Trash" },
     { path: "/compose", icon: Send, label: "Compose" },
     { path: "/keys", icon: Key, label: "Key Dashboard" },
   ];
