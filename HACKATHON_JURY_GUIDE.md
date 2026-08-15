@@ -1,4 +1,4 @@
-# QuMail: Quantum-Secure Email Application
+# QuMail: Quantum-Secure Email Application (AI Powered)
 ## Hackathon Jury Presentation Guide 🚀
 
 ---
