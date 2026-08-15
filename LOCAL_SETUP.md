@@ -2,7 +2,7 @@
 
 Follow these steps to set up and run the QuMail application on your local machine using VS Code.
 
-## Prerequisites
+## Prerequisites 
 
 - **Node.js**: Install Node.js (version 20 or higher recommended).
 - **PostgreSQL**: A Neon PostgreSQL connection string (which you already have).
