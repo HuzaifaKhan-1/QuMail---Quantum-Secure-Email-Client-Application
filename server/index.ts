@@ -1,4 +1,4 @@
-// node dist/index.js - to run
+// node dist/index.js - to run 
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
