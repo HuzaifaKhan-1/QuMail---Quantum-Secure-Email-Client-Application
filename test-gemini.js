@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config(); 
 
 async function testGemini() {
   const apiKey = process.env.GEMINI_API_KEY;
