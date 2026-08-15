@@ -1,4 +1,4 @@
-# 🚀 Next Steps: Completing Your QuMail Auth Upgrade
+# 🚀 Next Steps: Completing Your QuMail Auth Upgrade 
 
 To fully activate the new **Google OAuth 2.0** and **Hybrid Identity** system, please follow these configuration steps:
 
