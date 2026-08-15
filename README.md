@@ -114,7 +114,7 @@ Together:
                 │                           │
          🤖 AI INTELLIGENCE          ⚛️ QUANTUM SECURITY
                 │                           │
-        Email Understanding         QKD / KME Simulation
+        Email Understanding          QKD / KME Simulation
         Smart Assistance             Secure Key Management
         AI Analysis                  AES-GCM Encryption
         Threat Awareness             Post-Quantum Security
@@ -349,9 +349,9 @@ QuMail brings both together:
           ▼                         ▼
      🤖 AI LAYER              ⚛️ SECURITY LAYER
           │                         │
-     Understands              Protects
-     Assists                  Encrypts
-     Analyzes                 Manages Keys
+     Understands                 Protects
+       Assists                   Encrypts
+      Analyzes                  Manages Keys
           │                         │
           └────────────┬────────────┘
                        ▼
@@ -366,11 +366,11 @@ QuMail brings both together:
 ┌─────────────────────────────────────────────────────────┐
 │                    QU MAIL CLIENT                       │
 │                                                         │
-│  React + TypeScript + Vite + Tailwind CSS              │
+│  React + TypeScript + Vite + Tailwind CSS               │
 │                                                         │
-│  ┌───────────────┐    ┌─────────────────────────────┐  │
-│  │ Email Client  │    │ AI Email Intelligence       │  │
-│  └───────┬───────┘    └──────────────┬──────────────┘  │
+│  ┌───────────────┐    ┌─────────────────────────────┐   │
+│  │ Email Client  │    │ AI Email Intelligence       │   │
+│  └───────┬───────┘    └──────────────┬──────────────┘   │
 │          │                            │                 │
 └──────────┼────────────────────────────┼─────────────────┘
            │                            │
@@ -378,7 +378,7 @@ QuMail brings both together:
 ┌─────────────────────────────────────────────────────────┐
 │                 Node.js + Express API                   │
 │                                                         │
-│  Authentication │ Email │ AI │ Security │ Key Mgmt     │
+│  Authentication │ Email │ AI │ Security │ Key Mgmt      │
 └──────────────┬───────────────────────┬──────────────────┘
                │                       │
                ▼                       ▼
@@ -661,45 +661,6 @@ QuMail is designed as a foundation that can evolve beyond the current prototype.
 * Automated incident response
 
 ---
-
-# ⚠️ Security & Research Disclaimer
-
-QuMail is an **experimental research/prototyping project** demonstrating concepts in AI-assisted communication, quantum key distribution, cryptography, and secure email.
-
-The QKD/KME layer is **simulated in software** and does not represent a physical quantum communication network.
-
-The project should not be interpreted as a guarantee of absolute security or "unbreakable" encryption.
-
-Cryptographic implementations should undergo formal security review, testing, and independent auditing before being used for production-critical communication.
-
----
-
-# 🏁 Hackathon Edition
-
-### AI for Impact — Independence Day Hackathon 2026
-
-**Primary Theme:** 🛡️ Security
-
-**Project:** QuMail
-
-**Category:** Cybersecurity & Digital Communication
-
-### Our Core Proposition
-
-> **AI intelligence for smarter communication.
-> Quantum-secure technology for stronger protection.**
-
-### The Vision
-
-Today's email was built for communication.
-
-**QuMail is built for what comes next.**
-
----
-
-# 👥 Team
-
-**QuMail Team**
 
 Built with ❤️, AI, cybersecurity, and quantum technology.
 
