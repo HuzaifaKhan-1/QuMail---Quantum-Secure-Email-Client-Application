@@ -1,4 +1,4 @@
-# QuMail - Quantum Secure Email Client Application
+# QuMail - Quantum Secure Email Client Application (AI Powered)
 
 ## Overview
 
