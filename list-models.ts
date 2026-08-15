@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import 'dotenv/config'; 
 
 async function listModels() {
   const apiKey = (process.env.GEMINI_API_KEY || "").trim();
