@@ -1,4 +1,4 @@
-# QuMail – Quantum & Post-Quantum Secure Email Client
+# QuMail – Quantum & Post-Quantum Secure Email Client (AI Powered)
 ### *Future-Proofing Communication with Information-Theoretic and Computational Security*
 
 ---
